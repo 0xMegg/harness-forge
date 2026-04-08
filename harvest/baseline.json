@@ -1,11 +1,11 @@
 {
-  "score": 63,
+  "score": 65,
   "max": 100,
   "mode": "quick",
-  "timestamp": "2026-04-08T04:42:14Z",
+  "timestamp": "2026-04-08T07:51:28Z",
   "breakdown": {
     "rules": {
-      "score": 13,
+      "score": 15,
       "max": 20,
       "detail": "5 files"
     },

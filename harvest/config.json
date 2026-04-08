@@ -48,7 +48,7 @@
   },
 
   "measurement": {
-    "command": "bash scripts/harness-report.sh quick",
+    "command": "bash scripts/harness-report.sh quick --target src/",
     "baseline_file": "harvest/baseline.json"
   },
 

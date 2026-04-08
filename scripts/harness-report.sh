@@ -18,7 +18,36 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-MODE="${1:-full}"
+
+# Parse arguments: [quick|full] [--target <path>]
+MODE="full"
+TARGET_DIR=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    quick|full) MODE="$1"; shift ;;
+    --target) TARGET_DIR="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+
+# TARGET_DIR: the harness root to measure
+# If --target is relative, resolve from PROJECT_DIR
+if [ -n "$TARGET_DIR" ]; then
+  if [[ "$TARGET_DIR" != /* ]]; then
+    TARGET_DIR="$PROJECT_DIR/$TARGET_DIR"
+  fi
+else
+  TARGET_DIR="$PROJECT_DIR"
+fi
+
+# Verify target exists
+if [ ! -d "$TARGET_DIR" ]; then
+  echo "Error: target directory not found: $TARGET_DIR" >&2
+  exit 1
+fi
+
+echo "Measuring: $TARGET_DIR" >&2
+
 SCORE=0
 BREAKDOWN="{}"
 
@@ -53,7 +82,7 @@ print(json.dumps(d))
 echo -e "${CYAN}Checking rules coverage...${NC}" >&2
 
 rules_score=0
-rules_dir="$PROJECT_DIR/.claude/rules"
+rules_dir="$TARGET_DIR/.claude/rules"
 if [ -d "$rules_dir" ]; then
   rule_count=$(find "$rules_dir" -name '*.md' -type f | wc -l | tr -d ' ')
   # 1 point per rule file, max 10
@@ -83,7 +112,7 @@ echo -e "  Rules: ${rules_score}/20" >&2
 echo -e "${CYAN}Checking skills coverage...${NC}" >&2
 
 skills_score=0
-skills_dir="$PROJECT_DIR/.claude/skills"
+skills_dir="$TARGET_DIR/.claude/skills"
 if [ -d "$skills_dir" ]; then
   skill_count=0
   skill_with_examples=0
@@ -112,7 +141,7 @@ echo -e "  Skills: ${skills_score}/20" >&2
 echo -e "${CYAN}Checking hooks coverage...${NC}" >&2
 
 hooks_score=0
-hooks_dir="$PROJECT_DIR/.claude/hooks"
+hooks_dir="$TARGET_DIR/.claude/hooks"
 if [ -d "$hooks_dir" ]; then
   hook_count=$(find "$hooks_dir" -name '*.sh' -type f | wc -l | tr -d ' ')
   executable_count=$(find "$hooks_dir" -name '*.sh' -type f -perm +111 | wc -l | tr -d ' ')
@@ -137,7 +166,7 @@ echo -e "  Hooks: ${hooks_score}/15" >&2
 echo -e "${CYAN}Checking templates quality...${NC}" >&2
 
 templates_score=0
-templates_dir="$PROJECT_DIR/templates"
+templates_dir="$TARGET_DIR/templates"
 if [ -d "$templates_dir" ]; then
   template_count=$(find "$templates_dir" -name '*.md' -type f | wc -l | tr -d ' ')
   filled_count=0
@@ -169,7 +198,7 @@ echo -e "  Templates: ${templates_score}/15" >&2
 echo -e "${CYAN}Checking evaluation records...${NC}" >&2
 
 eval_score=0
-eval_dir="$PROJECT_DIR/outputs/evaluations"
+eval_dir="$TARGET_DIR/outputs/evaluations"
 if [ -d "$eval_dir" ]; then
   eval_count=$(find "$eval_dir" -name '*.md' -type f | wc -l | tr -d ' ')
   # 2 points per evaluation, max 10
@@ -196,7 +225,7 @@ else
   if command -v shellcheck &>/dev/null; then
     script_count=0
     pass_count=0
-    for f in "$PROJECT_DIR/scripts/"*.sh; do
+    for f in "$TARGET_DIR/scripts/"*.sh; do
       [ -f "$f" ] || continue
       script_count=$((script_count + 1))
       if shellcheck -S warning "$f" &>/dev/null; then
@@ -211,12 +240,12 @@ else
   fi
 
   # Check if project has tests and they pass
-  if [ -f "$PROJECT_DIR/package.json" ]; then
-    if npm test --prefix "$PROJECT_DIR" &>/dev/null 2>&1; then
+  if [ -f "$TARGET_DIR/package.json" ]; then
+    if npm test --prefix "$TARGET_DIR" &>/dev/null 2>&1; then
       test_pass=10
     fi
-  elif [ -f "$PROJECT_DIR/pubspec.yaml" ]; then
-    if (cd "$PROJECT_DIR" && dart test) &>/dev/null 2>&1; then
+  elif [ -f "$TARGET_DIR/pubspec.yaml" ]; then
+    if (cd "$TARGET_DIR" && dart test) &>/dev/null 2>&1; then
       test_pass=10
     fi
   else
