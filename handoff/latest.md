@@ -10,14 +10,16 @@
 ### 적용 결과
 | Item | 주제 | 결과 | 커밋 |
 |------|------|------|------|
-| 1 | MCP 실전 설정 예시 | 거절 (fitness 6/10, user 거절) | — |
+| 1 | MCP 실전 설정 예시 (1차) | 거절 (fitness 6/10, user 거절) | — |
 | 2 | Context 예산·세션 분할 체크리스트 + `post-edit-size-check.sh` | 적용 (9/10) | `e47eb67` |
 | 3 | Troubleshooting 가이드 + `scripts/diagnose.sh` | 적용 (9/10) | `a0a8e31` |
 | 5 | 브랜치 격리 (run-task/run-epic + pre-commit-branch-check 훅 + git.md 재작성) | 적용 (9/10, PENDING 승인) | `3ebd5bf` |
 | 4 | 병렬 overlap gate (상시) + worktree 격리 (opt-in) | 적용 (9/10, PENDING 승인) | `2539e38` |
+| 1* | MCP 실전 설정 (재시도): `.mcp.json.example` + `mcp-check.sh` + mcp-policy 부록 | 적용 (9/10, schema 교정 후 재투입) | `96761ef` |
 
 ### 추가 커밋
 - `3fce0fb` — 세션 전 미커밋 작업 정리 (dry-run + argparse refactor, commands 문구, harvest-policy)
+- `bb79220` — README 1차 갱신 (Hardening Highlights)
 - `faf54ed` (soft-reset됨) — Item 5 초기 혼합 커밋. 세션 전 미커밋 작업이 섞여 있어 2개로 분리 후 폐기.
 
 ## Current State
@@ -25,10 +27,13 @@
 - `src/.claude/rules/gotchas.md` — 7개 규칙 (변경 없음)
 - `src/.claude/hooks/` — 6개 (기존 4개 + `post-edit-size-check.sh`, `pre-commit-branch-check.sh`)
 - `src/docs/` — 기존 4개 + `troubleshooting.md` 신규
-- `src/scripts/` — 기존 + `diagnose.sh` 신규
-- `harvest/applied/` — Item 2/3/4/5의 applied JSON 기록
-- `harvest/raw/` — 5개 raw entry (rejected 포함)
-- Template 전파 완료: `bash scripts/build-template.sh` → `../claude-code-harness-template/` (75 파일)
+- `src/scripts/` — 기존 + `diagnose.sh`, `mcp-check.sh` 신규
+- `src/.mcp.json.example` — 신규 스캐폴드 (filesystem, github)
+- `src/context/mcp-policy.md` — New MCP Pre-Connection Checklist 부록 추가
+- `.gitignore` — `.mcp.json` 제외 추가
+- `harvest/applied/` — Item 1(재시도)/2/3/4/5의 applied JSON 기록
+- `harvest/raw/` — 6개 raw entry (1차 MCP rejected 포함)
+- Template 전파: `bash scripts/build-template.sh` → `../claude-code-harness-template/`
 
 ## What's Next
 - [ ] `../claude-code-harness-template/`에서 template 업데이트 커밋 (build-template.sh는 sync만 하고 커밋은 target repo에서 별도 수행)
@@ -36,7 +41,7 @@
 - [ ] `scripts/audit-coherence.sh` 작성 (이전 handoff의 미완료 항목)
 - [ ] fitness-filter examples에 counterexample 추가 (이전 handoff의 미완료 항목)
 - [ ] harness-report 점수 체계 개선 — 규칙/스킬/훅 포화 상태에서도 개선이 반영되도록 가중치 재설계
-- [ ] Item 1(MCP 예시)을 점수 보완(scaffold만이 아닌 설정 검증 훅 추가) 후 재투입 가능
+- [x] Item 1(MCP 예시) 재투입 — `mcp-check.sh` 검증기 + `.mcp.json.example` 로 9/10 달성 (`96761ef`)
 - [ ] SDK 최적화는 프로젝트별 별도 처리 (이번 배치 분리됨)
 
 ## Notes

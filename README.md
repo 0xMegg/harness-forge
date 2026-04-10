@@ -111,6 +111,7 @@ trend-harvester/
 | 실패 복구 | `docs/troubleshooting.md` + `scripts/diagnose.sh` | 5개 시나리오(run-task mid-fail, Reviewer loop, slice 충돌, hook 실패, lock 잔존) 자동 스캔 + 복구 명령 |
 | 브랜치 격리 | `run-task.sh` `task/{id}` / `run-epic.sh` `epic/{RUN_ID}` 자동 분기 + `pre-commit-branch-check.sh` 훅 | main 직접 커밋 차단 (exit 2), APPROVE 시 ff-only 자동 병합, `HARVEST_ALLOW_MAIN=1` 우회 |
 | 병렬 안정성 | `run-epic.sh` overlap gate (상시) + `HARVEST_PARALLEL_WORKTREE=1` git worktree 격리 (opt-in) | slice 간 파일 충돌 사전 차단, 선택적 워크트리 완전 격리 |
+| MCP 실전 설정 | `.mcp.json.example` 스캐폴드 + `mcp-policy.md` 5항목 체크리스트 + `scripts/mcp-check.sh` 검증기 | inline 토큰(`ghp_*`, `sk-*`, `sk-ant-*`, `xoxX-*`, `AKIA...`) 감지, `command` 필드 누락 차단, bare `/`·`~` scope 거부 |
 
 상세 적용 내역은 `harvest/applied/` 각 JSON과 `handoff/latest.md` 참고.
 
