@@ -73,7 +73,7 @@ trend-harvester/
 │       ├── fitness-filter/      #   5축 점수 산출
 │       └── harness-report/      #   하네스 품질 측정
 ├── scripts/
-│   ├── run-harvest.sh           # 파이프라인 오케스트레이터
+│   ├── run-harvest.sh           # 파이프라인 오케스트레이터 (참조용)
 │   ├── harness-report.sh        # 하네스 점수 측정 (0-100)
 │   └── build-template.sh        # src/ → 하네스 템플릿 레포 배포
 ├── harvest/
@@ -82,12 +82,37 @@ trend-harvester/
 │   ├── applied/                 # 적용 이력
 │   └── reports/                 # 실행 보고서
 ├── src/                         # 하네스 템플릿 소스 (배포 대상)
+│   ├── .claude/
+│   │   ├── hooks/               # 6 훅 (block-dangerous, post-edit-*,
+│   │   │                        #        pre-commit-branch-check)
+│   │   └── rules/               # api/frontend/testing/git/gotchas
+│   ├── scripts/
+│   │   ├── run-task.sh          # 3-Role + 자동 task/{id} 브랜치
+│   │   ├── run-epic.sh          # Epic + overlap gate + worktree opt-in
+│   │   └── diagnose.sh          # 실패 상태 자동 진단 (exit 0/1)
+│   └── docs/
+│       ├── epic-guide.md        # Epic 분할 + 병렬 안전장치
+│       └── troubleshooting.md   # 5개 실패 시나리오 복구
 ├── context/
-│   ├── harvest-policy.md        # 자동 적용 정책
-│   └── working-rules.md         # 워크플로우 규칙
+│   ├── harvest-policy.md        # 자동 적용 정책 (2단계 판단 의무)
+│   ├── mcp-policy.md            # MCP 연결 체크리스트
+│   └── working-rules.md         # 워크플로우 + 세션 분할 + token 예산
 ├── docs/harvest-guide.md        # 파이프라인 상세 가이드
 └── templates/                   # 제안서/보고서 형식
 ```
+
+## Hardening Highlights (2026-04)
+
+외부 트렌드 + 자체 운영 피드백을 파이프라인으로 적용한 최근 강화 항목:
+
+| 영역 | 변경 | 효과 |
+|------|------|------|
+| Context 예산 | `working-rules.md` 세션 분할 체크리스트 + 파일 크기 상한 + `post-edit-size-check.sh` 훅 | 편집 시 `CLAUDE.md>200`, `rules/*>50`, `context/*>150` 초과 자동 경고 |
+| 실패 복구 | `docs/troubleshooting.md` + `scripts/diagnose.sh` | 5개 시나리오(run-task mid-fail, Reviewer loop, slice 충돌, hook 실패, lock 잔존) 자동 스캔 + 복구 명령 |
+| 브랜치 격리 | `run-task.sh` `task/{id}` / `run-epic.sh` `epic/{RUN_ID}` 자동 분기 + `pre-commit-branch-check.sh` 훅 | main 직접 커밋 차단 (exit 2), APPROVE 시 ff-only 자동 병합, `HARVEST_ALLOW_MAIN=1` 우회 |
+| 병렬 안정성 | `run-epic.sh` overlap gate (상시) + `HARVEST_PARALLEL_WORKTREE=1` git worktree 격리 (opt-in) | slice 간 파일 충돌 사전 차단, 선택적 워크트리 완전 격리 |
+
+상세 적용 내역은 `harvest/applied/` 각 JSON과 `handoff/latest.md` 참고.
 
 ## Relationship with Harness Template
 
