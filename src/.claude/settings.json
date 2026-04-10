@@ -34,6 +34,10 @@
           {
             "type": "command",
             "command": ".claude/hooks/block-dangerous.sh \"$TOOL_INPUT\""
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-commit-branch-check.sh \"$TOOL_INPUT\""
           }
         ]
       }

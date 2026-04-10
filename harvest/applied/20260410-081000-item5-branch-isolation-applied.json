@@ -1,0 +1,49 @@
+{
+  "id": "manual-20260410-081000-branch-isolation",
+  "title": "메인 브랜치 작업 금지 — 스크립트 자동 분기 + 훅 + 규칙",
+  "source": "manual",
+  "source_type": "manual",
+  "trust_level": "high",
+  "target_files": [
+    "src/scripts/run-task.sh",
+    "src/scripts/run-epic.sh",
+    "src/.claude/hooks/pre-commit-branch-check.sh",
+    "src/.claude/settings.json",
+    "src/.claude/rules/git.md"
+  ],
+  "change_type": "config+rule",
+  "risk": "medium-high",
+  "modifies_existing_behavior": true,
+  "policy_note": "explicit 'modifies existing behavior' per harvest-policy (git.md Branches section replaced); cannot auto-apply; requires explicit 2차 승인 (PENDING path)",
+  "fitness": {
+    "automation": 2,
+    "friction": 2,
+    "hard_conversion": 2,
+    "token_efficiency": 1,
+    "measurability": 2,
+    "total": 9,
+    "rationale": "scripts auto-create task/epic branches, pre-commit hook blocks main commits, enforceable via exit codes"
+  },
+  "policy_verdict": "PENDING_APPROVED",
+  "user_approval": "2026-04-10T08:10Z — explicit approval incl. auto-merge on APPROVE",
+  "gate2_baseline": 65,
+  "gate2_new_score": 65,
+  "gate2_verdict": "PASS (no regression; hooks 5→6, still maxed 15/15)",
+  "applied_changes": [
+    "run-task.sh: setup_task_branch() creates task/{slug} when on main (standalone mode only, skipped when EPIC_NAME set by parent); finalize_task_branch() auto ff-only merge + push + delete on APPROVE",
+    "run-epic.sh: setup_epic_branch() creates epic/{RUN_ID} at startup; finalize_epic_branch() auto-merges on successful completion",
+    "pre-commit-branch-check.sh: new PreToolUse Bash hook, parses TOOL_INPUT for 'git commit', exits 2 with clear stderr when on main/master; HARVEST_ALLOW_MAIN=1 bypass",
+    "settings.json: hook registered in PreToolUse Bash list after block-dangerous.sh",
+    "git.md Branches section rewritten: task/epic branch required, main is merge-only, pre-commit hook enforcement documented"
+  ],
+  "behavior_changes": [
+    "BEFORE: run-task.sh/run-epic.sh operated on whatever branch user was on (typically main); git.md explicitly allowed solo main commits",
+    "AFTER: scripts auto-isolate; main is commit-blocked by hook; HARVEST_ALLOW_MAIN=1 is the only legitimate bypass"
+  ],
+  "self_test_results": {
+    "bash_syntax": "run-task.sh OK, run-epic.sh OK",
+    "shellcheck": "clean (pre-existing SC2129 style warning unrelated)",
+    "hook_self_test": "4/4 cases (non-commit pass, git-status pass, commit-on-main BLOCK exit 2, bypass PASS)"
+  },
+  "applied_at": "2026-04-10T08:12Z"
+}

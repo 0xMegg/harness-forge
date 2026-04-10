@@ -79,6 +79,71 @@ fi
 
 mkdir -p "$LOG_DIR"
 
+# ============================================================
+# Branch isolation — create task/{id} branch if on main/master
+# (skipped when parent epic already set up branch via TASK_ID,
+#  or during dry-run, or in non-git dirs, or when HARVEST_ALLOW_MAIN=1)
+# ============================================================
+TASK_BRANCH=""
+ORIGINAL_BRANCH=""
+
+_slugify_task() {
+  local s="$1"
+  printf '%s' "$s" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//' \
+    | cut -c1-40
+}
+
+setup_task_branch() {
+  # Skip in dry-run, parallel mode (EPIC_NAME came from epic env), or bypass
+  if [ "$DRY_RUN" = true ]; then return 0; fi
+  if [ -n "${EPIC_NAME:-}" ]; then return 0; fi   # inherit epic branch
+  if [ "${HARVEST_ALLOW_MAIN:-0}" = "1" ]; then return 0; fi
+  if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then return 0; fi
+
+  ORIGINAL_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+  case "$ORIGINAL_BRANCH" in
+    main|master) ;;
+    *) return 0 ;;   # already on a non-main branch, assume user set up
+  esac
+
+  # Refuse dirty worktree to avoid carrying unrelated changes
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "ERROR: working tree dirty on $ORIGINAL_BRANCH — commit/stash first or set HARVEST_ALLOW_MAIN=1" >&2
+    exit 1
+  fi
+
+  local slug_source="${TASK_ID:-$(_slugify_task "$TASK")}"
+  TASK_BRANCH="task/${slug_source}"
+
+  if git show-ref --verify --quiet "refs/heads/${TASK_BRANCH}"; then
+    git checkout "$TASK_BRANCH" >/dev/null 2>&1
+  else
+    git checkout -b "$TASK_BRANCH" >/dev/null 2>&1
+  fi
+  echo "[branch] ${ORIGINAL_BRANCH} → ${TASK_BRANCH}"
+}
+
+finalize_task_branch() {
+  # Called only on APPROVE. Merges task branch back to original and cleans up.
+  [ -z "$TASK_BRANCH" ] && return 0
+  [ "$DRY_RUN" = true ] && return 0
+
+  git checkout "$ORIGINAL_BRANCH" >/dev/null 2>&1 || {
+    echo "WARN: cannot return to $ORIGINAL_BRANCH — task branch $TASK_BRANCH preserved for inspection" >&2
+    return 0
+  }
+  if git merge --ff-only "$TASK_BRANCH" >/dev/null 2>&1; then
+    echo "[branch] merged ${TASK_BRANCH} → ${ORIGINAL_BRANCH} (ff-only)"
+    git push 2>/dev/null && echo "[branch] pushed ${ORIGINAL_BRANCH}" || echo "[branch] push skipped or failed — local merge kept"
+    git branch -d "$TASK_BRANCH" >/dev/null 2>&1 || true
+  else
+    echo "WARN: ff-only merge failed — leave ${TASK_BRANCH} for manual review" >&2
+    git checkout "$TASK_BRANCH" >/dev/null 2>&1 || true
+  fi
+}
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -345,6 +410,11 @@ if [ "$DRY_RUN" = true ]; then
 fi
 
 # ============================================================
+# Set up task branch before any work (standalone mode only)
+# ============================================================
+setup_task_branch
+
+# ============================================================
 # Initialize status file (inherits EPIC_NAME/TASK_INDEX/TASK_TOTAL from env
 # when launched by run-epic.sh; otherwise runs in standalone task mode)
 # ============================================================
@@ -457,6 +527,13 @@ while [ "$ITER" -le "$MAX_ITER" ]; do
 done
 
 write_status "ROLE=done" "VERDICT=${VERDICT}"
+
+# ============================================================
+# Finalize task branch on APPROVE (auto-merge back to original)
+# ============================================================
+if [ "$VERDICT" = "APPROVE" ]; then
+  finalize_task_branch
+fi
 
 # ============================================================
 # Done

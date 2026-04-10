@@ -66,6 +66,54 @@ ln -sfn "$LOG_DIR" "/tmp/${PROJECT_NAME}-run/latest"
 # Export so run-task.sh uses the same scoped directory
 export EPIC_LOG_DIR="$LOG_DIR"
 
+# ============================================================
+# Epic branch isolation — create epic/{RUN_ID} branch off main
+# (skipped for dry-run, non-git, or HARVEST_ALLOW_MAIN=1)
+# ============================================================
+EPIC_BRANCH=""
+EPIC_ORIGINAL_BRANCH=""
+
+setup_epic_branch() {
+  if [ "$DRY_RUN" = true ]; then return 0; fi
+  if [ "${HARVEST_ALLOW_MAIN:-0}" = "1" ]; then return 0; fi
+  if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then return 0; fi
+
+  EPIC_ORIGINAL_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "")
+  case "$EPIC_ORIGINAL_BRANCH" in
+    main|master) ;;
+    *) return 0 ;;   # already on a non-main branch
+  esac
+
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "ERROR: working tree dirty on $EPIC_ORIGINAL_BRANCH — commit/stash first or set HARVEST_ALLOW_MAIN=1" >&2
+    exit 1
+  fi
+
+  EPIC_BRANCH="epic/${RUN_ID}"
+  git checkout -b "$EPIC_BRANCH" >/dev/null 2>&1
+  echo "[epic-branch] ${EPIC_ORIGINAL_BRANCH} → ${EPIC_BRANCH}"
+}
+
+finalize_epic_branch() {
+  [ -z "$EPIC_BRANCH" ] && return 0
+  [ "$DRY_RUN" = true ] && return 0
+
+  git checkout "$EPIC_ORIGINAL_BRANCH" >/dev/null 2>&1 || {
+    echo "WARN: cannot return to $EPIC_ORIGINAL_BRANCH — ${EPIC_BRANCH} preserved" >&2
+    return 0
+  }
+  if git merge --ff-only "$EPIC_BRANCH" >/dev/null 2>&1; then
+    echo "[epic-branch] merged ${EPIC_BRANCH} → ${EPIC_ORIGINAL_BRANCH} (ff-only)"
+    git push 2>/dev/null && echo "[epic-branch] pushed ${EPIC_ORIGINAL_BRANCH}" || echo "[epic-branch] push skipped or failed — local merge kept"
+    git branch -d "$EPIC_BRANCH" >/dev/null 2>&1 || true
+  else
+    echo "WARN: ff-only merge failed — leave ${EPIC_BRANCH} for manual review" >&2
+    git checkout "$EPIC_BRANCH" >/dev/null 2>&1 || true
+  fi
+}
+
+setup_epic_branch
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -655,6 +703,9 @@ for stage_num in $(seq 1 "$STAGE_COUNT"); do
 done
 
 write_epic_status "STAGE=done" "COMPLETED_STAGES=${COMPLETED_STAGES}"
+
+# Auto-merge epic branch to original on successful completion
+finalize_epic_branch
 
 echo ""
 echo -e "${GREEN}════════════════════════════════════════${NC}"
