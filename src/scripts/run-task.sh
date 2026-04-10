@@ -4,9 +4,12 @@
 # Usage:
 #   ./scripts/run-task.sh "Task 1 — Fix empty form submission bug in signup"
 #   ./scripts/run-task.sh --max-iter 3 "Task 1 — Login UI"
+#   ./scripts/run-task.sh --dry-run "Task 1 — Smoke test"
 #
 # Each phase runs as an independent claude -p session (clean context).
 # With --max-iter N, Develop→Review loops up to N times on ITERATE verdict.
+# With --dry-run, claude -p is stubbed (no tokens spent) — used for
+# smoke testing the orchestrator and status file protocol.
 # Stops on failure. Logs saved to /tmp/{{PROJECT_NAME}}-run/
 
 set -euo pipefail
@@ -19,32 +22,44 @@ PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT_NAME="${PROJECT_NAME:-$(basename "$PROJECT_DIR")}"
 LOG_DIR="${EPIC_LOG_DIR:-/tmp/${PROJECT_NAME}-run}"
 
-# Optional: --task-id <id> for parallel execution isolation
+# ============================================================
+# Argument parsing (order-independent flags, then task description)
+# ============================================================
 TASK_ID=""
 HANDOFF_FILE="handoff/latest.md"
-if [ "${1:-}" = "--task-id" ] && [ -n "${2:-}" ]; then
-  TASK_ID="$2"
-  HANDOFF_FILE="handoff/task-${TASK_ID}.md"
-  LOG_DIR="${LOG_DIR}/task-${TASK_ID}"
-  shift 2
-fi
-
-# Optional: --no-commit to skip git commit/push in Review phase
-# Used by run-epic.sh for parallel Stages (consolidated commit after Stage completes)
 NO_COMMIT=false
-if [ "${1:-}" = "--no-commit" ]; then
-  NO_COMMIT=true
-  shift
-fi
-
-# Optional: --max-iter N for iterative refinement loop (Develop→Review up to N times)
-# On ITERATE verdict, the Developer refines and Reviewer re-evaluates.
-# Default: 1 (no iteration — backward compatible)
+DRY_RUN=false
 MAX_ITER=1
-if [ "${1:-}" = "--max-iter" ] && [ -n "${2:-}" ]; then
-  MAX_ITER="$2"
-  shift 2
-fi
+
+while [ $# -gt 0 ]; do
+  case "${1:-}" in
+    --task-id)
+      TASK_ID="${2:-}"
+      HANDOFF_FILE="handoff/task-${TASK_ID}.md"
+      LOG_DIR="${LOG_DIR}/task-${TASK_ID}"
+      shift 2
+      ;;
+    --no-commit)
+      NO_COMMIT=true
+      shift
+      ;;
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    --max-iter)
+      MAX_ITER="${2:-}"
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 
 if ! [[ "$MAX_ITER" =~ ^[0-9]+$ ]] || [ "$MAX_ITER" -lt 1 ]; then
   echo "Error: --max-iter must be a positive integer (got: $MAX_ITER)"
@@ -54,10 +69,11 @@ fi
 TASK="$*"
 
 if [ -z "$TASK" ]; then
-  echo "Usage: $0 [--task-id <id>] [--no-commit] [--max-iter N] <task description>"
+  echo "Usage: $0 [--task-id <id>] [--no-commit] [--dry-run] [--max-iter N] <task description>"
   echo "Example: $0 Task 1 — Fix empty form submission bug in signup"
   echo "Example: $0 --task-id slice-1 Task 1 — Signup form"
   echo "Example: $0 --max-iter 3 Task 1 — Login UI (iterate up to 3 times)"
+  echo "Example: $0 --dry-run Task 1 — Smoke test (no tokens spent)"
   exit 1
 fi
 
@@ -68,6 +84,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
 # ============================================================
@@ -78,12 +95,84 @@ log_phase() {
   echo -e "${BLUE}════════════════════════════════════════${NC}"
   echo -e "${BLUE}  $1${NC}"
   echo -e "${BLUE}════════════════════════════════════════${NC}"
+  print_status_line
   echo ""
 }
 
 log_success() { echo -e "${GREEN}✓ $1${NC}"; }
 log_fail()    { echo -e "${RED}✗ $1${NC}"; }
 log_warn()    { echo -e "${YELLOW}! $1${NC}"; }
+
+# ============================================================
+# Status file protocol — writes KEY=VALUE lines to $STATUS_FILE
+# so external monitors (epic.md, task.md) can read current state.
+# ============================================================
+STATUS_FILE="${LOG_DIR}/task-status"
+
+_quote_val() {
+  # Escape a value for safe `source` in bash 3.2+/zsh: wrap in single quotes
+  # and replace any internal single quote with the '\'' dance.
+  local v="$1"
+  local repl="'\\''"   # the 4-char sequence: ' \ ' '
+  local escaped="${v//\'/$repl}"
+  printf "'%s'" "$escaped"
+}
+
+write_status() {
+  # Merge new KEY=VAL pairs into the status file atomically.
+  # Values are single-quoted so `source` works identically in bash 3.2+ and zsh.
+  local tmp="${STATUS_FILE}.tmp.$$"
+  local pair key val
+
+  # Start from existing file, or empty
+  if [ -f "$STATUS_FILE" ]; then
+    cp "$STATUS_FILE" "$tmp"
+  else
+    : > "$tmp"
+  fi
+
+  # For each new pair, strip any existing line with that key, then append
+  for pair in "$@"; do
+    key="${pair%%=*}"
+    val="${pair#*=}"
+    grep -v "^${key}=" "$tmp" > "${tmp}.new" 2>/dev/null || true
+    mv "${tmp}.new" "$tmp"
+    echo "${key}=$(_quote_val "$val")" >> "$tmp"
+  done
+
+  # Refresh UPDATED_EPOCH
+  grep -v "^UPDATED_EPOCH=" "$tmp" > "${tmp}.new" 2>/dev/null || true
+  mv "${tmp}.new" "$tmp"
+  echo "UPDATED_EPOCH=$(date +%s)" >> "$tmp"
+
+  mv -f "$tmp" "$STATUS_FILE"
+}
+
+print_status_line() {
+  # Print a compact one-line status summary to stdout.
+  [ -f "$STATUS_FILE" ] || return 0
+  # shellcheck disable=SC1090
+  ( source "$STATUS_FILE"
+    local now
+    now=$(date +%s)
+    local elapsed=$(( now - ${START_EPOCH:-$now} ))
+    local mm=$((elapsed/60))
+    local ss=$((elapsed%60))
+    local prefix=""
+    if [ -n "${EPIC_NAME:-}" ]; then
+      prefix="[${EPIC_NAME}] "
+    fi
+    local task_display="${TASK_NAME:-?}"
+    if [ -n "${TASK_INDEX:-}" ] && [ -n "${TASK_TOTAL:-}" ]; then
+      task_display="(${TASK_INDEX}/${TASK_TOTAL}) ${TASK_NAME}"
+    fi
+    local role_display="${ROLE:-?}"
+    if [ -n "${ITER:-}" ] && [ "${MAX_ITER:-1}" != "1" ]; then
+      role_display="${role_display} (iter ${ITER}/${MAX_ITER})"
+    fi
+    echo -e "  ${CYAN}📋 ${prefix}${task_display} | Role: ${role_display} | ⏱ ${mm}m${ss}s${NC}"
+  )
+}
 
 run_claude() {
   local phase="$1"
@@ -101,6 +190,24 @@ run_claude() {
   fi
 
   cd "$PROJECT_DIR"
+
+  # ----- Dry-run short-circuit: stub claude -p, simulate work, write artifacts -----
+  if [ "$DRY_RUN" = true ]; then
+    echo "[DRY-RUN] stub: claude -p \"$command\""
+    echo "[DRY-RUN] log:  $log_file"
+    echo ""
+    sleep 1  # simulate work so status file has non-zero elapsed time
+    {
+      echo "[DRY-RUN] phase=$phase"
+      echo "[DRY-RUN] command=$command"
+      if [[ "$phase" == review* ]]; then
+        echo "VERDICT: APPROVE"
+      fi
+    } > "$log_file"
+    dry_run_write_artifacts "$phase"
+    return 0
+  fi
+
   echo "Running: claude -p \"$command\""
   echo "Log: $log_file"
   echo ""
@@ -115,12 +222,154 @@ run_claude() {
 }
 
 # ============================================================
+# Dry-run artifact stub writer — creates the files that each role
+# normally produces, so downstream phases have something to read.
+# ============================================================
+dry_run_write_artifacts() {
+  local phase="$1"
+  # Extract "Task N" from $TASK description for file naming; fallback to dry-run
+  local task_num
+  task_num=$(echo "$TASK" | grep -oE "[Tt]ask[[:space:]]+[0-9]+" | grep -oE "[0-9]+" | head -1)
+  task_num="${task_num:-dryrun}"
+
+  local plan_file="$PROJECT_DIR/outputs/plans/task-${task_num}-plan.md"
+  local verify_file="$PROJECT_DIR/outputs/plans/task-${task_num}-verify.md"
+  local review_file="$PROJECT_DIR/outputs/reviews/task-${task_num}-review.md"
+  local target_file="$PROJECT_DIR/DRYRUN-NOTES.md"
+  local handoff_path="$PROJECT_DIR/${HANDOFF_FILE}"
+
+  mkdir -p "$(dirname "$plan_file")" "$(dirname "$review_file")" "$(dirname "$handoff_path")"
+
+  case "$phase" in
+    plan)
+      cat > "$plan_file" <<EOF
+# Work Plan
+
+## Task
+${task_num} — ${TASK}
+
+## Goal
+[DRY-RUN] Stub plan for smoke test.
+
+## Scope
+- Files to modify: DRYRUN-NOTES.md
+- Files NOT to touch: everything else
+
+## Approach
+1. Append a dry-run marker line to DRYRUN-NOTES.md
+
+## Acceptance Criteria
+- [x] Dry-run artifact stub created
+EOF
+      cat > "$verify_file" <<EOF
+# Verification Plan
+
+## Task
+${task_num} — ${TASK}
+
+## Checks
+- [x] plan.md exists
+- [x] Dry-run stub complete
+EOF
+      cat > "$handoff_path" <<EOF
+# Session Handoff
+
+## Current State
+- Task: ${task_num} — ${TASK}
+- Phase: Plan → ready for Develop
+
+## Last Action
+- [DRY-RUN] Planner stub created plan + verify files
+
+## Plan & Review Locations
+- Plan: outputs/plans/task-${task_num}-plan.md
+- Verify: outputs/plans/task-${task_num}-verify.md
+EOF
+      ;;
+    develop*)
+      echo "- [DRY-RUN] Task ${task_num} — $(date +%Y-%m-%dT%H:%M:%S)" >> "$target_file"
+      cat > "$handoff_path" <<EOF
+# Session Handoff
+
+## Current State
+- Task: ${task_num} — ${TASK}
+- Phase: Develop → ready for Review
+
+## Last Action
+- [DRY-RUN] Developer stub appended line to DRYRUN-NOTES.md
+
+## Files Changed
+- DRYRUN-NOTES.md — dry-run marker
+
+## Verification Status
+- Lint: SKIPPED (dry-run)
+- Test: SKIPPED (dry-run)
+EOF
+      ;;
+    review*)
+      cat > "$review_file" <<EOF
+# Review Report
+
+## Task
+${task_num} — ${TASK}
+
+## Verdict
+APPROVE
+
+## Notes
+[DRY-RUN] Review stub — no actual inspection performed.
+EOF
+      cat > "$handoff_path" <<EOF
+# Session Handoff
+
+## Current State
+- Task: ${task_num} — ${TASK}
+- Phase: Done
+
+## Last Action
+- Verdict: APPROVE
+- [DRY-RUN] Reviewer stub wrote review file
+
+## Plan & Review Locations
+- Plan: outputs/plans/task-${task_num}-plan.md
+- Review: outputs/reviews/task-${task_num}-review.md
+EOF
+      ;;
+  esac
+}
+
+if [ "$DRY_RUN" = true ]; then
+  echo -e "${YELLOW}════════════════════════════════════════${NC}"
+  echo -e "${YELLOW}  [DRY-RUN] No claude -p calls will be made${NC}"
+  echo -e "${YELLOW}════════════════════════════════════════${NC}"
+fi
+
+# ============================================================
+# Initialize status file (inherits EPIC_NAME/TASK_INDEX/TASK_TOTAL from env
+# when launched by run-epic.sh; otherwise runs in standalone task mode)
+# ============================================================
+write_status \
+  "TASK_NAME=${TASK}" \
+  "TASK_ID=${TASK_ID:-}" \
+  "EPIC_NAME=${EPIC_NAME:-}" \
+  "TASK_INDEX=${TASK_INDEX:-}" \
+  "TASK_TOTAL=${TASK_TOTAL:-}" \
+  "ROLE=init" \
+  "ITER=1" \
+  "MAX_ITER=${MAX_ITER}" \
+  "VERDICT=" \
+  "START_EPOCH=$(date +%s)" \
+  "PID=$$"
+
+# ============================================================
 # Phase 1: Plan
 # ============================================================
+write_status "ROLE=plan" "ITER=1"
 log_phase "PHASE 1/3: PLAN"
 
 if ! run_claude "plan" "/plan $TASK"; then
   log_fail "Plan phase failed. Check ${LOG_DIR}/plan.log"
+  write_status "ROLE=failed" "VERDICT=PLAN_FAILED"
   exit 1
 fi
 
@@ -134,6 +383,7 @@ VERDICT=""
 
 while [ "$ITER" -le "$MAX_ITER" ]; do
   # --- Develop ---
+  write_status "ROLE=develop" "ITER=${ITER}"
   if [ "$ITER" -eq 1 ]; then
     log_phase "PHASE 2/3: DEVELOP"
     DEVELOP_PROMPT="/develop $TASK"
@@ -146,11 +396,13 @@ while [ "$ITER" -le "$MAX_ITER" ]; do
   # Override log file for iteration tracking
   if ! run_claude "develop-iter${ITER}" "$DEVELOP_PROMPT"; then
     log_fail "Develop phase failed (iter ${ITER}). Check ${DEVELOP_LOG}"
+    write_status "ROLE=failed" "VERDICT=DEVELOP_FAILED"
     exit 1
   fi
   log_success "Develop phase complete (iter ${ITER})"
 
   # --- Review ---
+  write_status "ROLE=review" "ITER=${ITER}"
   if [ "$ITER" -eq 1 ]; then
     log_phase "PHASE 3/3: REVIEW"
   else
@@ -160,12 +412,14 @@ while [ "$ITER" -le "$MAX_ITER" ]; do
   REVIEW_LOG="${LOG_DIR}/review-iter${ITER}.log"
   if ! run_claude "review-iter${ITER}" "/review $TASK"; then
     log_fail "Review phase failed (iter ${ITER}). Check ${REVIEW_LOG}"
+    write_status "ROLE=failed" "VERDICT=REVIEW_FAILED"
     exit 1
   fi
 
   # Check verdict
   if grep -qi "REQUEST_CHANGES\|request.changes" "$REVIEW_LOG" 2>/dev/null; then
     log_fail "Review verdict: REQUEST_CHANGES (iter ${ITER})"
+    write_status "ROLE=done" "VERDICT=REQUEST_CHANGES"
     echo ""
     echo "Review output: $REVIEW_LOG"
     echo ""
@@ -179,6 +433,7 @@ while [ "$ITER" -le "$MAX_ITER" ]; do
   if grep -qi "ITERATE" "$REVIEW_LOG" 2>/dev/null; then
     if [ "$ITER" -lt "$MAX_ITER" ]; then
       log_warn "Review verdict: ITERATE (iter ${ITER}/${MAX_ITER}) — refining..."
+      write_status "VERDICT=ITERATE"
       ITER=$((ITER + 1))
       continue
     else
@@ -200,6 +455,8 @@ while [ "$ITER" -le "$MAX_ITER" ]; do
   VERDICT="UNKNOWN"
   break
 done
+
+write_status "ROLE=done" "VERDICT=${VERDICT}"
 
 # ============================================================
 # Done

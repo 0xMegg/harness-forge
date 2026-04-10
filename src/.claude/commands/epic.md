@@ -13,7 +13,7 @@ Use `run_in_background: true`.
 2. Immediately after, run the status monitor in the background (single command, one approval):
 
 ```bash
-L=/tmp/{{PROJECT_NAME}}-run/latest; while true; do sleep 45; elapsed=$(( $(date +%s) - $(date -r "$L/epic-plan.log" 2>/dev/null || date +%s) )); min=$((elapsed/60)); sec=$((elapsed%60)); status="⏱ ${min}m${sec}s"; for d in "$L"/task-slice-*/; do [ -d "$d" ] || continue; s=$(basename "$d"); p="plan"; [ -f "$d/stdout.log" ] && { grep -q "PHASE 3" "$d/stdout.log" 2>/dev/null && p="review" || { grep -q "PHASE 2" "$d/stdout.log" 2>/dev/null && p="develop"; }; }; v=""; grep -qi "APPROVE" "$d/stdout.log" 2>/dev/null && v="✓"; status="$status | $s:$p$v"; done; echo "$status"; done
+L=/tmp/{{PROJECT_NAME}}-run/latest; while true; do sleep 45; [ -f "$L/epic-status" ] || { echo "⏱ waiting for epic to start..."; continue; }; ES=$(. "$L/epic-status"; e=$(( $(date +%s) - ${START_EPOCH:-$(date +%s)} )); echo "⏱ $((e/60))m$((e%60))s | ${EPIC_NAME:-?} | Stage ${STAGE:-?}/${STAGE_TOTAL:-?}"); TS=""; for d in "$L"/task-slice-*/; do [ -f "$d/task-status" ] || continue; s=$(basename "$d"); TS="$TS$(. "$d/task-status"; r="${ROLE:-?}"; [ -n "${VERDICT:-}" ] && r="${r}[${VERDICT}]"; echo " | $s:$r")"; done; if [ -f "$L/task-status" ]; then TS="$TS$(. "$L/task-status"; r="${ROLE:-?}"; [ -n "${VERDICT:-}" ] && r="${r}[${VERDICT}]"; idx="${TASK_INDEX:-?}"; echo " | seq-${idx}:$r")"; fi; echo "${ES}${TS}"; done
 ```
 Use `run_in_background: true`.
 

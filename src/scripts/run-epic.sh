@@ -25,11 +25,33 @@ PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_NAME="${PROJECT_NAME:-$(basename "$PROJECT_DIR")}"
 MAX_PARALLEL="${MAX_PARALLEL:-3}"
+
+# ============================================================
+# Argument parsing (flags first, then epic description)
+# ============================================================
+DRY_RUN=false
+while [ $# -gt 0 ]; do
+  case "${1:-}" in
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
 EPIC="$*"
 
 if [ -z "$EPIC" ]; then
-  echo "Usage: $0 <epic description>"
+  echo "Usage: $0 [--dry-run] <epic description>"
   echo "Example: $0 Epic 1 — User authentication system"
+  echo "Example: $0 --dry-run Epic 1 — Smoke test (no tokens spent)"
   exit 1
 fi
 
@@ -57,7 +79,61 @@ log_phase() {
   echo -e "${CYAN}════════════════════════════════════════${NC}"
   echo -e "${CYAN}  $1${NC}"
   echo -e "${CYAN}════════════════════════════════════════${NC}"
+  print_epic_status_line
   echo ""
+}
+
+# ============================================================
+# Epic status file — writes KEY=VALUE lines to $EPIC_STATUS_FILE.
+# Matches the format used by run-task.sh so external monitors
+# (epic.md, task.md) can read both files with the same parser.
+# ============================================================
+EPIC_STATUS_FILE="${LOG_DIR}/epic-status"
+
+_quote_val() {
+  # Escape a value for safe `source` in bash 3.2+/zsh.
+  local v="$1"
+  local repl="'\\''"
+  local escaped="${v//\'/$repl}"
+  printf "'%s'" "$escaped"
+}
+
+write_epic_status() {
+  local tmp="${EPIC_STATUS_FILE}.tmp.$$"
+  local pair key val
+
+  if [ -f "$EPIC_STATUS_FILE" ]; then
+    cp "$EPIC_STATUS_FILE" "$tmp"
+  else
+    : > "$tmp"
+  fi
+
+  for pair in "$@"; do
+    key="${pair%%=*}"
+    val="${pair#*=}"
+    grep -v "^${key}=" "$tmp" > "${tmp}.new" 2>/dev/null || true
+    mv "${tmp}.new" "$tmp"
+    echo "${key}=$(_quote_val "$val")" >> "$tmp"
+  done
+
+  grep -v "^UPDATED_EPOCH=" "$tmp" > "${tmp}.new" 2>/dev/null || true
+  mv "${tmp}.new" "$tmp"
+  echo "UPDATED_EPOCH=$(date +%s)" >> "$tmp"
+
+  mv -f "$tmp" "$EPIC_STATUS_FILE"
+}
+
+print_epic_status_line() {
+  [ -f "$EPIC_STATUS_FILE" ] || return 0
+  # shellcheck disable=SC1090
+  ( source "$EPIC_STATUS_FILE"
+    local now
+    now=$(date +%s)
+    local elapsed=$(( now - ${START_EPOCH:-$now} ))
+    local mm=$((elapsed/60))
+    local ss=$((elapsed%60))
+    echo -e "  ${CYAN}🎯 ${EPIC_NAME:-?} | Stage ${STAGE:-?}/${STAGE_TOTAL:-?} | Tasks: ${TASK_TOTAL:-?} | ⏱ ${mm}m${ss}s${NC}"
+  )
 }
 
 # ============================================================
@@ -101,12 +177,27 @@ fi
 
 cd "$PROJECT_DIR"
 
+if [ "$DRY_RUN" = true ]; then
+  echo -e "${YELLOW}════════════════════════════════════════${NC}"
+  echo -e "${YELLOW}  [DRY-RUN] No claude -p calls will be made${NC}"
+  echo -e "${YELLOW}════════════════════════════════════════${NC}"
+fi
+
 # ============================================================
 # Phase 0: Epic Decomposition (skip if plan already exists)
 # ============================================================
 EPIC_PLAN=""
 if [[ -n "${EPIC_NUM:-}" ]]; then
   EPIC_PLAN=$(find "$PROJECT_DIR/outputs/plans" -name "epic-${EPIC_NUM}*plan*.md" 2>/dev/null | sort | tail -1)
+fi
+
+# Dry-run: fall back to any epic plan file in outputs/plans if no EPIC_NUM match
+if [ "$DRY_RUN" = true ] && [ -z "$EPIC_PLAN" ]; then
+  EPIC_PLAN=$(find "$PROJECT_DIR/outputs/plans" -name "epic*plan*.md" 2>/dev/null | sort | tail -1)
+  if [ -z "$EPIC_PLAN" ]; then
+    echo -e "${RED}✗ [DRY-RUN] Requires a pre-existing epic plan in outputs/plans/epic*plan*.md${NC}"
+    exit 1
+  fi
 fi
 
 if [ -n "$EPIC_PLAN" ]; then
@@ -195,6 +286,22 @@ fi
 TOTAL=${#SLICES[@]}
 
 # ============================================================
+# Initialize epic status file (after slice parsing so we know TOTAL/STAGE_COUNT)
+# ============================================================
+write_epic_status \
+  "EPIC_NAME=${EPIC}" \
+  "STAGE=0" \
+  "STAGE_TOTAL=${STAGE_COUNT}" \
+  "TASK_TOTAL=${TOTAL}" \
+  "COMPLETED_STAGES=0" \
+  "START_EPOCH=$(date +%s)" \
+  "PID=$$"
+
+# Export so run-task.sh can pick up epic context for its own status file
+export EPIC_NAME="${EPIC}"
+export TASK_TOTAL="${TOTAL}"
+
+# ============================================================
 # Display parsed structure
 # ============================================================
 if $HAS_STAGES; then
@@ -230,6 +337,11 @@ commit_stage() {
   local stage_num="$1"
   shift
   local indices=("$@")
+
+  if [ "$DRY_RUN" = true ]; then
+    echo -e "${YELLOW}[DRY-RUN] Skipping commit for Stage $stage_num${NC}"
+    return 0
+  fi
 
   echo -e "${BLUE}Committing Stage $stage_num changes...${NC}"
 
@@ -296,6 +408,10 @@ commit_stage() {
 # If scripts/deploy-hook.sh exists and is executable, run it after each stage commit
 run_deploy_hook() {
   local stage_num="$1"
+  if [ "$DRY_RUN" = true ]; then
+    echo -e "${YELLOW}[DRY-RUN] Skipping deploy hook for Stage $stage_num${NC}"
+    return 0
+  fi
   local hook="$PROJECT_DIR/scripts/deploy-hook.sh"
   if [ -x "$hook" ]; then
     echo -e "${BLUE}Running deploy hook for Stage $stage_num...${NC}"
@@ -350,7 +466,12 @@ run_parallel_stage() {
 
       echo -e "  ${BLUE}Starting: Slice $((idx+1)) — ${slice_desc}${NC}"
 
-      "$SCRIPT_DIR/run-task.sh" --task-id "slice-${idx}" --no-commit "$slice_desc" \
+      local dry_flag=""
+      if [ "$DRY_RUN" = true ]; then
+        dry_flag="--dry-run"
+      fi
+      TASK_INDEX="$((idx+1))" TASK_TOTAL="$TOTAL" EPIC_NAME="$EPIC" \
+        "$SCRIPT_DIR/run-task.sh" --task-id "slice-${idx}" --no-commit ${dry_flag:+$dry_flag} "$slice_desc" \
         > "${task_log_dir}/stdout.log" 2>&1 &
 
       pids+=($!)
@@ -447,6 +568,7 @@ for stage_num in $(seq 1 "$STAGE_COUNT"); do
 
   stage_slice_count=${#stage_indices[@]}
 
+  write_epic_status "STAGE=${stage_num}"
   log_phase "STAGE $stage_num/$STAGE_COUNT ($stage_slice_count slice(s))"
 
   if ! $HAS_STAGES || [ "$stage_slice_count" -eq 1 ]; then
@@ -456,7 +578,12 @@ for stage_num in $(seq 1 "$STAGE_COUNT"); do
 
     echo -e "${BLUE}Running: Slice $((local_idx+1)) — ${SLICE}${NC}"
 
-    if "$SCRIPT_DIR/run-task.sh" --no-commit "$SLICE"; then
+    dry_flag=""
+    if [ "$DRY_RUN" = true ]; then
+      dry_flag="--dry-run"
+    fi
+    if TASK_INDEX="$((local_idx+1))" TASK_TOTAL="$TOTAL" EPIC_NAME="$EPIC" \
+         "$SCRIPT_DIR/run-task.sh" --no-commit ${dry_flag:+$dry_flag} "$SLICE"; then
       echo -e "${GREEN}✓ Slice $((local_idx+1)) complete${NC}"
 
       # Orchestrator handles commit (same as parallel stages)
@@ -524,7 +651,10 @@ for stage_num in $(seq 1 "$STAGE_COUNT"); do
   fi
 
   COMPLETED_STAGES=$((COMPLETED_STAGES+1))
+  write_epic_status "COMPLETED_STAGES=${COMPLETED_STAGES}"
 done
+
+write_epic_status "STAGE=done" "COMPLETED_STAGES=${COMPLETED_STAGES}"
 
 echo ""
 echo -e "${GREEN}════════════════════════════════════════${NC}"
