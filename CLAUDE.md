@@ -6,8 +6,8 @@
 - Stack: Bash, Markdown, Claude Code Skills
 
 ## What It Does
-외부 트렌드를 수집 → 5축 필터링 → 실측 검증 → 하네스 템플릿에 자동/수동 적용하는 자기 개선 파이프라인.
-결과물(개선된 하네스 템플릿)은 별도 레포에 저장된다.
+A self-improvement pipeline that collects external trends → applies 5-axis filtering → validates with real measurements → automatically/manually applies changes to harness templates.
+The output (improved harness templates) is stored in a separate repository.
 
 ## Build & Test Commands
 - Build template: `bash scripts/build-template.sh`
@@ -16,23 +16,23 @@
 - Lint: `shellcheck scripts/*.sh`
 
 ## Key Directories
-- `src/` — 하네스 템플릿 소스 ({{플레이스홀더}} 포함, 편집 대상)
-- `harvest/` — 파이프라인 데이터 (수집/분석/적용 이력)
-- `scripts/` — 파이프라인 실행 스크립트
-- `outputs/` — 작업 산출물 (plans, reviews, evaluations)
+- `src/` — Harness template source (contains {{placeholders}}, edit target)
+- `harvest/` — Pipeline data (collection/analysis/apply history)
+- `scripts/` — Pipeline execution scripts
+- `outputs/` — Work artifacts (plans, reviews, evaluations)
 
 ## Output Target
-- 빌드된 템플릿 → `../claude-code-harness-template/` 에 배포
-- `scripts/build-template.sh`가 src/ → 대상 레포로 복사
+- Built templates are deployed to `../claude-code-harness-template/`
+- `scripts/build-template.sh` copies src/ → target repo
 
 ## Architecture
 - 7-Element Harness: Permissions, Validation, Execution Mode, State, Decision Trace, External Integration, Self-Improvement Loop
 - 6-Phase Pipeline: Guard → Collect → Analyze → Measure → Judge → Apply → Report
-- Double-Gating: SOFT (5축 filter) + HARD (harness-report 실측)
+- Double-Gating: SOFT (5-axis filter) + HARD (harness-report measurement)
 
 ## Folder Boundaries
 - Do NOT modify: `harvest/.seen.json`, `harvest/.lock`
-- 템플릿 수정은 반드시 `src/`에서 → build로 반영
+- Template modifications must be made in `src/` → reflected via build
 
 ## Work Protocol
 1. Read the relevant code before modifying
@@ -50,17 +50,18 @@
 - Never modify target repo directly — always edit src/ and rebuild
 
 ## Self-Improvement (Harvest Module)
-- `harvest/config.json` — 수집 소스, 임계값, 스케줄 설정
-- `context/harvest-policy.md` — 자동 적용 vs 수동 승인 정책
-- `/harvest` — 전체 파이프라인 실행
-- `/harvest scan` — 수집만
-- `/harvest add <URL/설명>` — 수동 입력
-- `/harvest judge` — baseline 측정 + autoresearch
-- `/harvest status` — 현황 확인
+- `harvest/config.json` — Collection sources, thresholds, schedule settings
+- `context/harvest-policy.md` — Auto-apply vs manual approval policy
+- `/harvest` — Run full pipeline
+- `/harvest scan` — Collection only
+- `/harvest validate <description>` — Manual input validation (Phase 2-5)
+- `/harvest add <description>` — Alias for /harvest validate
+- `/harvest judge` — Baseline measurement + autoresearch
+- `/harvest status` — Check current status
 
 ## References
-- `context/harvest-policy.md` — 자동 적용 정책
-- `context/working-rules.md` — 워크플로우 규칙 + self-improvement loop
-- `docs/harvest-guide.md` — 파이프라인 설명서
-- `handoff/latest.md` — 현재 상태
-- `templates/evaluation.md` — 작업 평가 (6 metrics)
+- `context/harvest-policy.md` — Auto-apply policy
+- `context/working-rules.md` — Workflow rules + self-improvement loop
+- `docs/harvest-guide.md` — Pipeline guide
+- `handoff/latest.md` — Current state
+- `templates/evaluation.md` — Task evaluation (6 metrics)

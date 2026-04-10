@@ -1,9 +1,9 @@
 # Example: Trend Harvest Good Output
 
-## 요청
+## Request
 "/harvest"
 
-## 결과
+## Result
 
 ```
 ═══════════════════════════════════
@@ -37,10 +37,10 @@ Phase 3.5: Autoresearch Judge
 
 Phase 4: Apply
   Auto-applied: 2
-    .claude/rules/gotchas.md → "Flutter pubspec version conflict" pitfall 추가
-    .claude/rules/testing.md → "shellcheck for bash scripts" 규칙 추가
+    .claude/rules/gotchas.md → "Flutter pubspec version conflict" pitfall added
+    .claude/rules/testing.md → "shellcheck for bash scripts" rule added
   Pending approval: 1
-    .claude/hooks/pre-commit-shellcheck.sh → hook 변경 (승인 필요)
+    .claude/hooks/pre-commit-shellcheck.sh → hook change (requires approval)
   Rejected: 4
 
 Phase 5: Report

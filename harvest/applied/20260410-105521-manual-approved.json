@@ -1,0 +1,80 @@
+[
+  {
+    "id": "proposal-c-context-reset-70pct",
+    "title": "Reset context at 70% capacity \u2014 compact or new session",
+    "source": [
+      "ws-anthropic-harness-design"
+    ],
+    "source_urls": [
+      "https://www.anthropic.com/engineering/harness-design-long-running-apps"
+    ],
+    "description": "When context usage approaches 70%, use /compact or start new session. Handoff via handoff/latest.md. Prevents degraded output from context anxiety.",
+    "target_file": "src/.claude/rules/gotchas.md",
+    "change_type": "rule",
+    "risk": "low",
+    "fitness": {
+      "automation": 1,
+      "friction": 2,
+      "hard_conversion": 0,
+      "token_efficiency": 2,
+      "measurability": 1,
+      "total": 6
+    },
+    "proposed_text": "- When context nears 70% capacity, proactively /compact or start a fresh session \u2014 degraded context produces hallucinations and forgotten instructions. Write handoff before resetting",
+    "verdict": "APPROVED",
+    "pending_reason": "requires approval (type=rule, score=6)",
+    "approved_at": "2026-04-10"
+  },
+  {
+    "id": "proposal-d-harness-coherence-audit",
+    "title": "Audit harness coherence after batch rule changes",
+    "source": [
+      "ws-martinfowler-harness"
+    ],
+    "source_urls": [
+      "https://martinfowler.com/articles/harness-engineering.html"
+    ],
+    "description": "After harvest apply or batch rule changes, scan .claude/rules/*.md for contradictions. Report conflicts. Prevents rules from fighting each other.",
+    "target_file": "scripts/",
+    "change_type": "hook",
+    "risk": "low",
+    "fitness": {
+      "automation": 2,
+      "friction": 2,
+      "hard_conversion": 1,
+      "token_efficiency": 1,
+      "measurability": 2,
+      "total": 8
+    },
+    "proposed_text": "New script: scripts/audit-coherence.sh \u2014 scan rules for contradictions after batch changes",
+    "verdict": "APPROVED",
+    "pending_reason": "requires approval (type=hook, score=8)",
+    "approved_at": "2026-04-10"
+  },
+  {
+    "id": "proposal-e-failure-mode-tuning",
+    "title": "Failure mode tuning \u2014 add counterexamples on fitness filter misjudgment",
+    "source": [
+      "ws-anthropic-harness-design"
+    ],
+    "source_urls": [
+      "https://www.anthropic.com/engineering/harness-design-long-running-apps"
+    ],
+    "description": "When fitness filter produces incorrect verdict (false positive or false negative), add specific counterexample to fitness-filter/examples/good-output.md.",
+    "target_file": ".claude/skills/fitness-filter/examples/",
+    "change_type": "skill",
+    "risk": "low",
+    "fitness": {
+      "automation": 1,
+      "friction": 2,
+      "hard_conversion": 0,
+      "token_efficiency": 1,
+      "measurability": 2,
+      "total": 6
+    },
+    "proposed_text": "Update fitness-filter examples with counterexamples from misjudgments",
+    "verdict": "APPROVED",
+    "pending_reason": "requires approval (type=skill, score=6)",
+    "approved_at": "2026-04-10"
+  }
+]

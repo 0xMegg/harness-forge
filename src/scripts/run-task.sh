@@ -2,8 +2,8 @@
 # run-task.sh — Run Plan → Develop → Review in separate sessions
 #
 # Usage:
-#   ./scripts/run-task.sh "Task 1 — 회원가입 폼 빈값 제출 버그 수정"
-#   ./scripts/run-task.sh --max-iter 3 "Task 1 — 로그인 UI"
+#   ./scripts/run-task.sh "Task 1 — Fix empty form submission bug in signup"
+#   ./scripts/run-task.sh --max-iter 3 "Task 1 — Login UI"
 #
 # Each phase runs as an independent claude -p session (clean context).
 # With --max-iter N, Develop→Review loops up to N times on ITERATE verdict.
@@ -55,9 +55,9 @@ TASK="$*"
 
 if [ -z "$TASK" ]; then
   echo "Usage: $0 [--task-id <id>] [--no-commit] [--max-iter N] <task description>"
-  echo "Example: $0 Task 1 — 회원가입 폼 빈값 제출 버그 수정"
-  echo "Example: $0 --task-id slice-1 Task 1 — 회원가입 폼"
-  echo "Example: $0 --max-iter 3 Task 1 — 로그인 UI (iterate up to 3 times)"
+  echo "Example: $0 Task 1 — Fix empty form submission bug in signup"
+  echo "Example: $0 --task-id slice-1 Task 1 — Signup form"
+  echo "Example: $0 --max-iter 3 Task 1 — Login UI (iterate up to 3 times)"
   exit 1
 fi
 
@@ -139,7 +139,7 @@ while [ "$ITER" -le "$MAX_ITER" ]; do
     DEVELOP_PROMPT="/develop $TASK"
   else
     log_phase "ITERATION ${ITER}/${MAX_ITER}: DEVELOP (refinement)"
-    DEVELOP_PROMPT="/develop $TASK — ITERATE 피드백 반영 (iteration ${ITER})"
+    DEVELOP_PROMPT="/develop $TASK — ITERATE apply feedback (iteration ${ITER})"
   fi
 
   DEVELOP_LOG="${LOG_DIR}/develop-iter${ITER}.log"
@@ -171,7 +171,7 @@ while [ "$ITER" -le "$MAX_ITER" ]; do
     echo ""
     echo "Next steps:"
     echo "  1. Read the review: cat $REVIEW_LOG"
-    echo "  2. Fix: /develop $TASK — REQUEST_CHANGES 수정"
+    echo "  2. Fix: /develop $TASK — REQUEST_CHANGES fix"
     echo "  3. Re-review: /review $TASK"
     exit 1
   fi

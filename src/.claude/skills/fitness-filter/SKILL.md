@@ -1,77 +1,97 @@
 ---
 name: fitness-filter
 description: |
-  외부 트렌드 아이템을 5축 적합성 필터로 점수화한다.
-  다음 요청에 활성화:
-  "이 트렌드 평가해", "fitness score", "적합성 점수", "5축 분석",
-  "이거 적용할만해?", "trend evaluate"
-  다음에는 활성화하지 않음:
-  "하네스 점수", "코드 리뷰", "버그 수정", "수집해"
+  Scores external trend items using a 5-axis fitness filter.
+  Activate on these requests:
+  "evaluate this trend", "fitness score", "fitness assessment", "5-axis analysis",
+  "is this worth applying?", "trend evaluate"
+  Do NOT activate on:
+  "harness score", "code review", "fix bug", "collect trends"
 version: 1.0.0
 ---
 
 # Fitness Filter Skill
 
-외부 트렌드/아이디어를 프로젝트 관점에서 5축 적합성 점수로 평가한다.
+Evaluates external trends/ideas with a 5-axis fitness score from the project's perspective.
 
 ## Trigger
-- "이 트렌드 평가해 [URL/설명]"
+- "evaluate this trend [URL/description]"
 - "fitness score for [item]"
-- harvest pipeline의 Phase 2에서 자동 호출
+- Automatically invoked during Phase 2 of the harvest pipeline
 
 ## Input
-트렌드 아이템:
-- title: 제목 또는 요약
-- url: 출처 URL (선택)
-- description: 상세 설명
+Trend item:
+- title: title or summary
+- url: source URL (optional)
+- description: detailed description
 - source_type: web_fetch / web_search / manual / internal_feedback
+
+## Pre-Filter: Concreteness Gate
+
+Before scoring, reject proposals that lack concrete specifics. A proposal MUST specify all three:
+1. **Target file** — exact path (e.g., `.claude/rules/gotchas.md`, not "a rule file")
+2. **Triggering condition** — specific, observable event (e.g., "3+ consecutive identical error messages", not "when things go wrong")
+3. **Action** — exact behavior (e.g., "exit 1 to block commit", not "warn the user")
+
+If any of the three is missing or vague, reject immediately with reason `abstract-proposal`.
+Do NOT invent specifics to pass the gate — if the input is vague, reject it.
+
+**Reject** (abstract):
+- "Add a rule about code quality" → no target file, no condition, no action
+- "Improve error handling" → no specific trigger or file
+- "Be more careful with tests" → aspirational, not enforceable
+
+**Pass** (concrete):
+- "Add to gotchas.md: if `git diff --cached` shows `*.env*` files, exit 1 in pre-commit hook"
+- "Add rule to testing.md: run `npm test -- --bail` before committing; if exit code != 0, block"
 
 ## 5-Axis Scoring
 
-각 축 0~2점, 총 10점 만점. **임계값: 6점** (3축 이상 의미 있게 충족)
+Each axis 0-2 points, 10 points total. **Threshold: 6 points** (meaningfully satisfied on 3 or more axes)
 
-### 1. Automation (자동화) — 0~2
-- 2: 수동 단계를 완전히 제거 (예: 매번 손으로 하던 검증을 hook으로 자동화)
-- 1: 수동 단계를 부분적으로 줄임 (예: 반복 작업의 일부를 스크립트화)
-- 0: 자동화 효과 없음
+### 1. Automation — 0-2
+- 2: Completely eliminates a manual step (e.g., automates a verification that was done by hand every time via a hook)
+- 1: Partially reduces a manual step (e.g., scripts part of a repetitive task)
+- 0: No automation effect
 
-### 2. Friction (마찰 제거) — 0~2
-- 2: gotchas.md의 기존 함정을 직접 방지 (예: 알려진 실수를 자동 차단)
-- 1: 관련 있는 마찰을 줄이지만 직접 연결은 아님
-- 0: 기존 마찰과 무관
+### 2. Friction — 0-2
+- 2: Directly prevents an existing pitfall in gotchas.md (e.g., automatically blocks a known mistake)
+- 1: Reduces related friction but not a direct connection
+- 0: Unrelated to existing friction
 
-### 3. HARD Conversion (강제 전환) — 0~2
-- 2: bash exit code로 직접 강제 가능 (예: 훅에서 exit 1로 차단)
-- 1: 부분적으로 자동 검증 가능 (예: 경고는 되지만 차단은 안 됨)
-- 0: 순수 주관적 판단, 자동화 불가
+### 3. HARD Conversion — 0-2
+- 2: Can be directly enforced via bash exit code (e.g., block with exit 1 in a hook)
+- 1: Partially auto-verifiable (e.g., warns but does not block)
+- 0: Purely subjective judgment, cannot be automated
 
-### 4. Token Efficiency (토큰 효율) — 0~2
-- 2: 측정 가능한 토큰 절감 (예: 프롬프트 단축, 불필요한 컨텍스트 제거)
-- 1: 간접적 개선 (예: 더 명확한 규칙으로 재시도 감소)
-- 0: 토큰 영향 없음
+### 4. Token Efficiency — 0-2
+- 2: Measurable token savings (e.g., shorter prompts, removing unnecessary context)
+- 1: Indirect improvement (e.g., clearer rules leading to fewer retries)
+- 0: No token impact
 
-### 5. Measurability (측정가능성) — 0~2
-- 2: 단일 지표로 직접 추적 가능 (예: 테스트 수, 린트 경고 수, evaluation 점수)
-- 1: 간접 지표로 추적 (예: 세션 길이, 재작업 빈도)
-- 0: 명확한 측정 지표 없음
+### 5. Measurability — 0-2
+- 2: Directly trackable with a single metric (e.g., test count, lint warning count, evaluation score)
+- 1: Trackable via indirect metrics (e.g., session length, rework frequency)
+- 0: No clear measurement metric
 
 ## Context Required
-점수 산출 시 반드시 읽어야 하는 파일:
-1. `.claude/rules/gotchas.md` — 기존 함정 (Friction 축 평가용)
-2. `CLAUDE.md` — 프로젝트 아키텍처 (적용 가능성 판단)
-3. `harvest/config.json` — 축별 가중치
-4. `context/harvest-policy.md` — 자동 적용 가능 여부
+Files that must be read when calculating scores:
+1. `.claude/rules/gotchas.md` — existing pitfalls (for evaluating the Friction axis)
+2. `CLAUDE.md` — project architecture (for judging applicability)
+3. `harvest/config.json` — per-axis weights
+4. `context/harvest-policy.md` — whether auto-apply is possible
 
 ## Output Format
-`templates/harvest-proposal.md` 형식으로 출력.
+Output in `templates/harvest-proposal.md` format.
 
 ## Decision
-- score >= 7 + risk low → auto-apply 후보
-- score >= 6 → Phase 3.5 (autoresearch judge) 진행
-- score < 6 → harvest/rejected/에 기록 + 사유
+- score >= 7 + risk low → auto-apply candidate
+- score >= 6 → proceed to Phase 3.5 (autoresearch judge)
+- score < 6 → record in harvest/rejected/ + reason
 
 ## Gotchas
-- 프로젝트 컨텍스트 없이 일반론으로 점수를 매기지 말 것
-- "좋아 보이는" 것과 "이 프로젝트에 필요한" 것은 다름
-- HARD conversion이 0이면 규칙으로 강제할 수 없으므로 실효성 낮음
-- 이미 gotchas.md에 유사한 항목이 있으면 Friction 2점이 아닌 중복 처리
+- Do not score based on generalities without project context
+- "Looks good" is different from "needed for this project"
+- If HARD conversion is 0, it cannot be enforced as a rule, so effectiveness is low
+- If a similar item already exists in gotchas.md, treat as a duplicate rather than giving Friction 2 points
+- Do NOT invent specifics to pass the concreteness gate — if the input is vague, reject it as `abstract-proposal`

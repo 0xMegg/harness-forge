@@ -64,18 +64,18 @@ Static code review is insufficient for UI/API tasks.
 Skip this step for pure logic/refactoring tasks with no UI/API changes.
 
 ## Anti-Dismissal Rule
-이슈를 발견했으면 스스로 무효화하지 마라.
-- 첫 인상이 "문제될 수 있다"면, 최소 Important으로 분류
-- "실제로는 안 일어날 것이다", "블로킹할 정도는 아니다" 같은 자기합리화 금지
-- Developer가 반론하면 됨 — Reviewer의 역할은 회의적(skeptical)이 되는 것
-- 이슈를 찾은 뒤 심각도를 낮추려는 충동이 느껴지면, 그것 자체가 bias의 신호다
+If you find an issue, do not self-invalidate it.
+- If your first impression is "this could be a problem," classify it as Important at minimum
+- Do not rationalize it away with "it probably won't happen in practice" or "it's not blocking enough"
+- The Developer can push back — the Reviewer's role is to be skeptical
+- If you feel the urge to downgrade an issue after finding it, that itself is a signal of bias
 
 ## Verdict Criteria
-- Critical 1건 이상 → REQUEST_CHANGES
-- Important 2건 이상 → REQUEST_CHANGES
-- Important 1건 → APPROVE + 해당 이슈를 "Carry over to next Task"에 기록
-- Minor만 → APPROVE
-- 기능적이지만 품질 미달 (UI polish, 성능 등) → ITERATE (구체적 개선 타겟 제시)
+- 1 or more Critical issues → REQUEST_CHANGES
+- 2 or more Important issues → REQUEST_CHANGES
+- 1 Important issue → APPROVE + record the issue under "Carry over to next Task"
+- Only Minor issues → APPROVE
+- Functional but below quality bar (UI polish, performance, etc.) → ITERATE (provide specific improvement targets)
 
 ## Commit Rules (APPROVE only)
 - Commit + push immediately after APPROVE — do not ask
@@ -91,14 +91,14 @@ When `--no-commit` instruction is present in the prompt, skip git operations ent
 The orchestrator (run-epic.sh) calls commit_stage() for consolidated commits after all parallel slices complete.
 
 ## Multi-Repo Commit Rules
-워크스페이스 루트에 `.git/`이 없고 하위 디렉토리가 각각 git repo인 경우:
-1. 하위 디렉토리 중 `.git/`이 있는 repo를 탐색
-2. 변경이 있는 각 repo에서 개별적으로:
+When there is no `.git/` at the workspace root and subdirectories are individual git repos:
+1. Scan subdirectories for those containing `.git/`
+2. For each repo with changes, individually run:
    - `cd <repo_dir> && git add -A && git commit -m "type: Task N [repo-name] — summary" && git push`
-3. 워크스페이스 루트로 복귀
-4. 핸드오프에 각 repo의 커밋 해시를 모두 기록
+3. Return to the workspace root
+4. Record all commit hashes from each repo in the handoff
 
-단일 repo 워크스페이스 (`.git/`이 루트에 있음): 기존과 동일하게 루트에서 커밋.
+Single-repo workspace (`.git/` at root): commit at root as usual.
 
 ## Handoff
 Overwrite handoff/latest.md using `templates/handoff.md` format. Fill all fields including Reviewer-only sections (Verdict, Commit, Issues Found).

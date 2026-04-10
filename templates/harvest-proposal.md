@@ -5,23 +5,29 @@
 - URL: [source URL or "N/A"]
 - Discovered: [YYYY-MM-DD HH:MM]
 
+## Concreteness Check
+- Target file: [exact path, e.g., `.claude/rules/gotchas.md`]
+- Trigger: [specific condition, e.g., "3+ identical errors in output"]
+- Action: [exact behavior, e.g., "exit 1 in pre-commit hook"]
+- Pass/Fail: [pass / fail:abstract-proposal]
+
 ## Fitness Score
 - **Total: [N]/10** (threshold: 6)
-- Automation (0-2): [N] — [근거]
-- Friction (0-2): [N] — [근거]
-- HARD conversion (0-2): [N] — [근거]
-- Token efficiency (0-2): [N] — [근거]
-- Measurability (0-2): [N] — [근거]
+- Automation (0-2): [N] — [rationale]
+- Friction (0-2): [N] — [rationale]
+- HARD conversion (0-2): [N] — [rationale]
+- Token efficiency (0-2): [N] — [rationale]
+- Measurability (0-2): [N] — [rationale]
 
 ## Proposal
 - Change type: [rule / scaffold-rule / new-skill / hook / config]
 - Target file: [path]
 - Risk: [low / medium / high]
-- Description: [이 제안이 하는 일]
+- Description: [What this proposal does]
 
 ## Content
 ```
-[실제 적용될 내용 — 규칙 텍스트, 스킬 YAML, 훅 스크립트 등]
+[Actual content to be applied — rule text, skill YAML, hook script, etc.]
 ```
 
 ## Autoresearch Verdict
@@ -29,4 +35,4 @@
 - After-apply score: [N]/100
 - Delta: [+/-N]
 - Verdict: [keep / discard]
-- Reason: [유지/폐기 근거]
+- Reason: [Rationale for keeping/discarding]

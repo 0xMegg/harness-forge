@@ -2,7 +2,7 @@
 # run-epic.sh — Epic decomposition + automatic Slice execution
 #
 # Usage:
-#   ./scripts/run-epic.sh "Epic 1 — 사용자 인증 시스템"
+#   ./scripts/run-epic.sh "Epic 1 — User authentication system"
 #
 # Flow:
 #   1. /plan Epic N → generates epic plan with Slice list
@@ -29,7 +29,7 @@ EPIC="$*"
 
 if [ -z "$EPIC" ]; then
   echo "Usage: $0 <epic description>"
-  echo "Example: $0 Epic 1 — 사용자 인증 시스템"
+  echo "Example: $0 Epic 1 — User authentication system"
   exit 1
 fi
 
@@ -165,7 +165,7 @@ while IFS= read -r line; do
   fi
 
   # Detect Slice/Task lines (existing pattern)
-  if echo "$line" | grep -qiE "^[[:space:]]*[-*|#0-9].*\b(Task|Slice|태스크|슬라이스)\s+[0-9]"; then
+  if echo "$line" | grep -qiE "^[[:space:]]*[-*|#0-9].*\b(Task|Slice)\s+[0-9]"; then
     SLICE_DESC=$(echo "$line" | sed -E '
       s/^[[:space:]]*[-*|]+[[:space:]]*//;
       s/\|[[:space:]]*$//;
@@ -238,7 +238,7 @@ commit_stage() {
   for idx in "${indices[@]}"; do
     local desc="${SLICES[$idx]}"
     local short_desc
-    short_desc=$(echo "$desc" | sed -E 's/^(Slice|Task|태스크|슬라이스)\s+[0-9]+\s*[-—:]\s*//')
+    short_desc=$(echo "$desc" | sed -E 's/^(Slice|Task)\s+[0-9]+\s*[-—:]\s*//')
     if [ -n "$slice_summaries" ]; then
       slice_summaries="${slice_summaries} + ${short_desc}"
     else

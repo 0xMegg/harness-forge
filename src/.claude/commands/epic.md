@@ -17,7 +17,7 @@ L=/tmp/{{PROJECT_NAME}}-run/latest; while true; do sleep 45; elapsed=$(( $(date 
 ```
 Use `run_in_background: true`.
 
-3. Tell the user: "Epic 실행 중. 완료되면 알려드리겠습니다."
+3. Tell the user: "Epic is running. I'll notify you when it completes."
 
 4. **Do NOT run any more Bash commands, status checks, or reads until the epic task completes.**
 

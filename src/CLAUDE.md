@@ -81,13 +81,14 @@ This workspace coordinates multiple independent repositories:
 - `{{SCHEMA_FILE}}` — data schema (source of truth), if applicable
 
 ## Self-Improvement (Optional — activate by setting harvest/config.json enabled: true)
-- `harvest/config.json` — trend-harvester pipeline 설정
-- `context/harvest-policy.md` — 자동 적용 vs 수동 승인 정책
-- `/harvest` — 전체 파이프라인 실행
-- `/harvest scan` — 수집만
-- `/harvest add <URL/설명>` — 수동 입력
-- `/harvest judge` — baseline 측정 + autoresearch
-- `/harvest status` — 현황 확인
+- `harvest/config.json` — trend-harvester pipeline configuration
+- `context/harvest-policy.md` — auto-apply vs manual approval policy
+- `/harvest` — run full pipeline
+- `/harvest scan` — collection only
+- `/harvest validate <description>` — manual input validation (Phase 2-5)
+- `/harvest add <description>` — alias for /harvest validate
+- `/harvest judge` — baseline measurement + autoresearch
+- `/harvest status` — check current status
 
 ## 3-Role Workflow
 - `/plan` — Planner: read-only, writes plans to `outputs/plans/`

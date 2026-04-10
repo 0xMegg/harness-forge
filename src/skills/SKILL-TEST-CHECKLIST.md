@@ -1,34 +1,34 @@
 # Skill Test Checklist
 
-새 Skill을 만들거나 기존 Skill을 수정한 후 반드시 확인.
+Always verify after creating a new Skill or modifying an existing one.
 
-## 1. 호출 시험 (Trigger Test)
-- [ ] 다양한 자연어 표현으로 활성화되는가?
-- [ ] 한국어/영어 모두 작동하는가?
-- [ ] description에 적은 trigger 표현들이 실제로 매칭되는가?
+## 1. Trigger Test
+- [ ] Does it activate with various natural language expressions?
+- [ ] Does it work in both Korean and English?
+- [ ] Do the trigger expressions listed in the description actually match?
 
-## 2. 오발동 시험 (Negative Test)
-- [ ] 관련 없는 요청에는 활성화되지 않는가?
-- [ ] 유사하지만 다른 Skill 영역의 요청을 구분하는가?
-- [ ] description에 적은 "활성화하지 않음" 표현들이 실제로 걸러지는가?
+## 2. Negative Test
+- [ ] Does it stay inactive for unrelated requests?
+- [ ] Does it distinguish similar but different Skill domain requests?
+- [ ] Do the "do not activate on" expressions listed in the description actually get filtered out?
 
-## 3. 형식 시험 (Format Test)
-- [ ] 출력이 템플릿과 예시를 따르는가?
-- [ ] 필수 섹션이 빠지지 않는가?
-- [ ] Report Format이 일관적인가?
+## 3. Format Test
+- [ ] Does the output follow the template and examples?
+- [ ] Are all required sections present?
+- [ ] Is the Report Format consistent?
 
-## 4. 실패 사례 점검 (Gotcha Test)
-- [ ] 불확실한 경우 "확인 필요"로 표시하는가?
-- [ ] Gotchas에 적힌 실수를 하지 않는가?
-- [ ] 에스컬레이션 조건(3회 실패 등)을 지키는가?
+## 4. Gotcha Test
+- [ ] Does it mark uncertain cases as "needs confirmation"?
+- [ ] Does it avoid the mistakes listed in Gotchas?
+- [ ] Does it respect escalation conditions (e.g., 3 failures)?
 
-## 5. 경계 사례 점검 (Boundary Test)
-- [ ] 유사하지만 다른 요청에 대해 scope creep 없는가?
-- [ ] 입력이 불충분할 때 추가 정보를 요청하는가?
-- [ ] 빈 입력이나 모호한 입력에 대해 안전하게 처리하는가?
+## 5. Boundary Test
+- [ ] Is there no scope creep for similar but different requests?
+- [ ] Does it request additional information when input is insufficient?
+- [ ] Does it handle empty or ambiguous input safely?
 
-## 테스트 방법
-1. 실제 프롬프트로 Claude 세션에서 테스트
-2. Trigger/Negative 표현을 각각 3개 이상 시도
-3. 결과를 examples/에 좋은 출력으로 저장
-4. 실패 패턴이 발견되면 Gotchas에 추가
+## Test Method
+1. Test in a Claude session with actual prompts
+2. Try at least 3 Trigger and 3 Negative expressions each
+3. Save results as good output examples in examples/
+4. If failure patterns are found, add them to Gotchas

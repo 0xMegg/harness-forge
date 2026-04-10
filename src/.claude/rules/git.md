@@ -10,11 +10,11 @@
 - Only the Reviewer commits (after APPROVE)
 
 ## Multi-Repo:
-- 워크스페이스 루트에 `.git/`이 없으면 각 하위 repo에서 개별 commit+push
-- 커밋 메시지: `type: Task N [repo-name] — short summary`
-- 각 repo 독립적으로 push
-- 핸드오프에 모든 repo의 커밋 해시 기록
-- 워크스페이스 루트에서 `git` 명령을 실행하지 말 것
+- If no `.git/` in workspace root, commit+push individually in each sub-repo
+- Commit message: `type: Task N [repo-name] — short summary`
+- Push each repo independently
+- Record commit hashes from all repos in handoff
+- Do not run `git` commands from workspace root
 
 ## Branches:
 - Solo development: work directly on main — commit + push allowed

@@ -1,352 +1,352 @@
 # Epic Guide (v5)
 
-Epic을 만들고 실행하는 기준 문서.
-언제 Epic을 쓰는지, 어떻게 분해하는지, v5에서 달라진 점은 무엇인지를 다룬다.
+The reference document for creating and executing Epics.
+Covers when to use Epics, how to decompose them, and what changed in v5.
 
 ---
 
-## Epic이란
+## What is an Epic
 
-Epic은 단일 Task로 끝나지 않는 기능 단위의 작업이다.
-여러 파일을 걸쳐 수정하고, 여러 관심사(데이터/로직/UI)가 얽혀 있으며,
-완료까지 복수의 Plan → Develop → Review 사이클이 필요한 작업이 Epic이 된다.
+An Epic is a feature-level unit of work that cannot be completed as a single Task.
+It involves modifications across multiple files, entangles multiple concerns (data/logic/UI),
+and requires multiple Plan -> Develop -> Review cycles to complete.
 
-## 언제 Epic을 쓰는가
+## When to Use an Epic
 
-| 상황 | 선택 |
+| Situation | Choice |
 |------|------|
-| 수정 파일 1~2개, 단일 관심사 | Task 하나로 충분 |
-| 수정 파일 3~5개, 하나의 기능 | Task 하나지만 Planner가 plan 먼저 |
-| 수정 파일 6~9개, 단일 관심사 | **Epic Lite** (Stage 없이 단일 Task) |
-| 수정 파일 6~9개, 복수 관심사 | **Epic으로 분해** |
-| 수정 파일 10개 이상 | **Epic으로 분해** (Stage 필수) |
-| DB 스키마 + API + UI가 함께 바뀜 | **Epic으로 분해** |
-| "이거 하나만 하면 돼"인데 설명이 3줄 넘어감 | Epic일 가능성 높음 |
+| 1-2 files modified, single concern | A single Task is sufficient |
+| 3-5 files modified, one feature | A single Task, but Planner writes a plan first |
+| 6-9 files modified, single concern | **Epic Lite** (single Task without Stages) |
+| 6-9 files modified, multiple concerns | **Decompose into Epic** |
+| 10+ files modified | **Decompose into Epic** (Stages required) |
+| DB schema + API + UI all change together | **Decompose into Epic** |
+| "Just this one thing" but the description exceeds 3 lines | Likely an Epic |
 
-판단이 애매하면 Epic으로 시작한다. Slice가 1개뿐인 Epic은 자동으로 단일 Task처럼 동작한다.
+When in doubt, start with an Epic. An Epic with only 1 Slice automatically behaves like a single Task.
 
 ### Epic Lite
-Opus 4.6은 2시간 이상 일관된 빌드를 유지할 수 있다.
-10파일 미만 + 단일 관심사인 경우 Stage 분해 없이 단일 Task로 처리하면 된다.
+Opus 4.6 can maintain consistent builds for 2+ hours.
+For fewer than 10 files + single concern, handle it as a single Task without Stage decomposition.
 
-**Epic Lite 조건:**
-- 수정 파일 6~9개
-- 관심사가 1개 (데이터+로직+UI가 하나의 기능에 속함)
-- 외부 의존성 변경 없음
+**Epic Lite conditions:**
+- 6-9 files modified
+- Single concern (data + logic + UI all belong to one feature)
+- No external dependency changes
 
-**Epic Lite가 아닌 경우 (Full Epic 필요):**
-- 파일 10개 이상
-- 관심사 2개 이상 (예: 인증 + 결제가 동시에 바뀜)
-- DB 마이그레이션 + API + UI가 독립적으로 실패할 수 있음
+**Not Epic Lite (Full Epic required):**
+- 10+ files
+- 2+ concerns (e.g., auth + payment change simultaneously)
+- DB migration + API + UI can fail independently
 
-이 판단은 Planner가 수행한다. Epic Lite로 시작했다가 중간에 범위가 커지면 Full Epic으로 전환.
+This judgment is made by the Planner. If scope grows mid-way through an Epic Lite, convert to a Full Epic.
 
-## Epic 분해 원칙
+## Epic Decomposition Principles
 
-### 1. 층(Layer) 순서로 자르기
+### 1. Slice by Layer Order
 
-가장 안전한 분해 방향은 아래에서 위로:
-
-```
-Stage 1: 데이터 층 (스키마, 마이그레이션, 모델)
-Stage 2: 로직 층 (서비스, 리포지토리, API)
-Stage 3: UI 층 (컴포넌트, 라우트, 화면)
-Stage 4: 통합 테스트 + 마무리
-```
-
-이 순서가 강한 이유는, 위 층이 아래 층에 의존하기 때문이다.
-데이터 없이 API를 짤 수 없고, API 없이 UI를 짤 수 없다.
-
-### 2. 같은 Stage 안에서는 파일이 겹치면 안 된다
-
-이것이 병렬 실행의 유일하고 절대적인 규칙이다.
+The safest decomposition direction is bottom-up:
 
 ```
-Stage 2 (병렬 가능):
+Stage 1: Data layer (schema, migrations, models)
+Stage 2: Logic layer (services, repositories, APIs)
+Stage 3: UI layer (components, routes, screens)
+Stage 4: Integration tests + wrap-up
+```
+
+This order is strong because upper layers depend on lower layers.
+You can't write APIs without data, and you can't write UI without APIs.
+
+### 2. Files Must Not Overlap Within the Same Stage
+
+This is the sole, absolute rule for parallel execution.
+
+```
+Stage 2 (parallelizable):
   Slice A: src/api/auth.ts, src/services/auth.ts
   Slice B: src/api/profile.ts, src/services/profile.ts
-  → 파일이 겹치지 않으므로 병렬 OK
+  -> No file overlap, so parallel is OK
 ```
 
 ```
-Stage 2 (병렬 불가):
+Stage 2 (not parallelizable):
   Slice A: src/api/auth.ts, src/utils/validation.ts
   Slice B: src/api/profile.ts, src/utils/validation.ts
-  → validation.ts가 겹치므로 같은 Stage에 넣으면 안 됨
+  -> validation.ts overlaps, so they cannot be in the same Stage
 ```
 
-겹치는 파일이 있으면 두 가지 중 하나를 선택한다:
-- 공통 파일을 별도 Slice로 빼서 먼저 실행 (Stage 분리)
-- 두 Slice를 다른 Stage에 순차 배치
+When files overlap, choose one of two options:
+- Extract the shared file into a separate Slice and execute it first (Stage separation)
+- Place the two Slices in different Stages for sequential execution
 
-### 3. Slice 크기 기준
+### 3. Slice Size Guidelines
 
-| 기준 | 권장 |
+| Criterion | Recommendation |
 |------|------|
-| 수정 파일 수 | ~5개 이하 |
-| 예상 구현 시간 | 1 세션 안에 끝날 분량 |
-| 테스트 | 독립적으로 검증 가능 |
-| 리뷰 | 한 눈에 diff를 읽을 수 있는 분량 |
+| Number of files modified | ~5 or fewer |
+| Estimated implementation time | Completable within 1 session |
+| Testing | Independently verifiable |
+| Review | Small enough to read the diff at a glance |
 
-Slice가 너무 크면 Review가 형식적이 된다.
-Slice가 너무 작으면 세션 전환 비용이 이득을 넘어선다.
+If a Slice is too large, the Review becomes superficial.
+If a Slice is too small, session switching costs outweigh the benefits.
 
-### 4. 의존성은 명시적으로
+### 4. Make Dependencies Explicit
 
-각 Slice의 `Depends on:` 필드를 반드시 채운다.
-"이전 Stage 전체"보다 "Slice 2의 auth.ts"처럼 구체적으로 적을수록
-실패 시 영향 범위를 빨리 파악할 수 있다.
+Always fill in the `Depends on:` field for each Slice.
+Being specific like "auth.ts from Slice 2" rather than "entire previous Stage"
+helps identify the blast radius quickly when failures occur.
 
 ---
 
-## v5에서 달라진 점
+## What Changed in v5
 
-### 병렬 Stage 통합 커밋
+### Parallel Stage Integrated Commits
 
-v4에서는 병렬 Slice마다 Reviewer가 `git commit + push`를 시도했다.
-첫 번째 Slice가 push하면 나머지는 remote가 앞서 있어서 실패했다.
+In v4, the Reviewer attempted `git commit + push` for each parallel Slice.
+The first Slice would push successfully, but the rest would fail because the remote was ahead.
 
-v5에서는:
-- 병렬 Slice는 `--no-commit`으로 실행 → Reviewer가 git을 건드리지 않음
-- Stage의 모든 Slice가 완료되면 `commit_stage()`가 통합 커밋
-- 커밋 메시지: `feat: Stage N — slice1 요약 + slice2 요약 + ...`
-- 순차 실행(단일 Slice)은 기존과 동일하게 Reviewer가 직접 커밋
+In v5:
+- Parallel Slices run with `--no-commit` -> Reviewer does not touch git
+- When all Slices in a Stage are complete, `commit_stage()` creates an integrated commit
+- Commit message: `feat: Stage N — slice1 summary + slice2 summary + ...`
+- Sequential execution (single Slice) works as before — Reviewer commits directly
 
 ```
-Stage 1 (병렬):
-  Slice A → Plan → Develop → Review (no commit) ✓
-  Slice B → Plan → Develop → Review (no commit) ✓
-  → commit_stage(): git add -A → commit → push ✓ (모든 Slice 반영)
+Stage 1 (parallel):
+  Slice A -> Plan -> Develop -> Review (no commit) ✓
+  Slice B -> Plan -> Develop -> Review (no commit) ✓
+  -> commit_stage(): git add -A -> commit -> push ✓ (all Slices included)
 ```
 
-### 검증 계획이 더 구체적
+### More Specific Verification Plans
 
-각 Slice의 verify.md에 다음이 추가되었다:
-- **Completion Criteria**: 모델과 사람이 같은 끝점을 보게 만드는 좌표
-- **Constraints**: "테스트를 수정하지 말 것" 같은 수정 금지 규칙
+The following have been added to each Slice's verify.md:
+- **Completion Criteria**: Coordinates that ensure both the model and humans see the same endpoint
+- **Constraints**: Modification restrictions like "do not modify tests"
 - **Confidence level**: HIGH / MEDIUM / LOW
 
-Epic plan 단계에서 각 Slice의 완료 기준을 선명하게 적어야 한다.
-"Done when: 동작함"이 아니라 "Done when: 빈 폼 제출 시 에러 메시지 표시 + 테스트 통과"처럼.
+At the Epic plan stage, completion criteria for each Slice must be clearly stated.
+Not "Done when: it works" but "Done when: error message shown on empty form submit + tests pass".
 
-### 평가 루프
+### Evaluation Loop
 
-각 Slice(Task) 완료 후 `templates/evaluation.md`로 5대 지표를 기록한다:
-성공률, 사람 수정량, 시간, 토큰/비용, 실패 유형.
+After each Slice (Task) is completed, 5 key metrics are recorded using `templates/evaluation.md`:
+Success rate, human edit volume, time, tokens/cost, failure types.
 
-Epic 단위에서는 Slice별 평가를 모아 반복되는 실패 패턴을 분석한다.
-같은 유형의 실패가 2회 이상 나오면 `rules/gotchas.md`나 Skill의 Gotchas에 반영한다.
+At the Epic level, per-Slice evaluations are aggregated to analyze recurring failure patterns.
+If the same type of failure occurs 2+ times, it gets reflected in `rules/gotchas.md` or Skill Gotchas.
 
-### 정책 문서 참조
+### Policy Document References
 
-Epic plan 작성 시 다음을 확인한다:
-- `context/access-policy.md` — 이 Epic에 사람 승인이 필요한 작업이 있는가?
-- `context/mcp-policy.md` — 외부 서비스 연결이 필요한가? allowlist에 있는가?
+When writing an Epic plan, check the following:
+- `context/access-policy.md` — Does this Epic include any work requiring human approval?
+- `context/mcp-policy.md` — Is external service integration needed? Is it on the allowlist?
 
 ---
 
 ## Multi-Repo Workspaces
 
-워크스페이스 루트에 `.git/`이 없고, 하위 디렉토리(e.g., `backend/`, `frontend/`)가 각각 독립된 git repo인 경우.
+When the workspace root has no `.git/` and subdirectories (e.g., `backend/`, `frontend/`) are each independent git repos.
 
-### commit_stage() 동작
-- 워크스페이스 루트가 git repo인지 먼저 확인
-- git repo가 아니면 직계 하위 디렉토리에서 `.git/`을 가진 repo를 탐색
-- 변경이 있는 각 repo에서 독립적으로 commit + push
-- 커밋 메시지에 `[repo-name]` 접두사 추가: `feat: Stage 1 [backend] — auth API`
+### commit_stage() Behavior
+- First checks if the workspace root is a git repo
+- If not a git repo, scans immediate subdirectories for those with `.git/`
+- Commits and pushes independently in each repo that has changes
+- Adds `[repo-name]` prefix to commit messages: `feat: Stage 1 [backend] — auth API`
 
-### Planner 주의사항
-- Slice의 Files 필드에 repo 이름을 접두사로 표기: `backend/src/api/auth.ts`
-- 각 Slice에 `**Repo:**` 필드로 대상 repo 명시
-- 같은 Stage 내 파일 겹침 규칙은 전체 워크스페이스 기준 (repo별이 아님)
-- 서로 다른 repo만 수정하는 Slice는 병렬 실행에 안전
-- 크로스리포 의존성(e.g., API 변경 → UI 반영)은 별도 Stage로 분리
+### Planner Considerations
+- Prefix repo names in Slice Files fields: `backend/src/api/auth.ts`
+- Specify the target repo with a `**Repo:**` field in each Slice
+- The file overlap rule within the same Stage applies across the entire workspace (not per repo)
+- Slices that modify only different repos are safe for parallel execution
+- Cross-repo dependencies (e.g., API change -> UI update) should be separated into different Stages
 
-### Reviewer 주의사항
-- 각 repo에서 개별적으로 git status → add → commit → push
-- 핸드오프에 각 repo의 커밋 해시 기록
-- 워크스페이스 루트에서 `git` 명령을 실행하지 않는다
+### Reviewer Considerations
+- Independently run git status -> add -> commit -> push in each repo
+- Record commit hashes from each repo in the handoff
+- Do not run `git` commands from the workspace root
 
 ### Deploy Hook
-- `scripts/deploy-hook.sh`가 존재하고 실행 가능하면, 각 Stage 커밋 후 자동 실행
-- 인자: stage 번호 (`$1`)
-- 실패해도 Epic은 계속 진행 (non-blocking)
+- If `scripts/deploy-hook.sh` exists and is executable, it runs automatically after each Stage commit
+- Argument: stage number (`$1`)
+- Failures do not block the Epic (non-blocking)
 
-### 단일 Repo 워크스페이스
-- 기존과 완전히 동일하게 동작. 변경 없음.
-
----
-
-## Epic Plan 작성법
-
-### 시작 전 체크리스트
-
-- [ ] `handoff/latest.md` 읽었는가? (현재 상태 파악)
-- [ ] `context/decision-log.md` 확인했는가? (이전 결정 재논의 방지)
-- [ ] `context/access-policy.md` 확인했는가? (사람 승인 필요 작업 확인)
-- [ ] 관련 코드를 충분히 읽었는가?
-
-### Epic Plan 구조
-
-`templates/epic-plan.md`를 따르되, 핵심은 다음 4가지:
-
-1. **Goal**: 이 기능이 완성되면 어떤 상태인가 (2-3문장)
-2. **Stages & Slices**: 층 순서로 분해, 파일 겹침 없이
-3. **Done when**: 각 Slice마다 구체적 완료 기준 (verify.md에 쓸 수 있을 정도로)
-4. **Rollback Strategy**: 중간에 포기해야 할 때 어디까지 되돌리는가
-
-### 좋은 Epic Plan의 특징
-
-- Slice 설명만 읽어도 Developer가 무엇을 만들지 감이 잡힘
-- 각 Slice의 Files 목록이 겹치지 않음 (같은 Stage 내)
-- 완료 기준이 측정 가능함 (테스트, 화면 확인, lint 통과)
-- Open Questions가 남아 있으면 해당 Slice를 뒤 Stage로 미룸
-
-### 나쁜 Epic Plan의 신호
-
-- "구현한다"만 적혀 있고 완료 기준이 없음
-- 하나의 Slice가 10개 이상 파일을 건드림
-- 같은 Stage 안 Slice들이 공통 파일을 수정함
-- "나머지 전부"라는 Slice가 있음 (범위가 불명확)
-- Open Questions가 있는데 첫 번째 Stage에 배치됨
+### Single Repo Workspace
+- Works exactly the same as before. No changes.
 
 ---
 
-## 실행 방법
+## How to Write an Epic Plan
 
-### 자동 실행 (권장)
+### Pre-Start Checklist
+
+- [ ] Have you read `handoff/latest.md`? (Understand current state)
+- [ ] Have you checked `context/decision-log.md`? (Avoid re-discussing past decisions)
+- [ ] Have you checked `context/access-policy.md`? (Identify tasks requiring human approval)
+- [ ] Have you read enough of the relevant code?
+
+### Epic Plan Structure
+
+Follow `templates/epic-plan.md`, but the 4 essentials are:
+
+1. **Goal**: What state will this feature be in when complete (2-3 sentences)
+2. **Stages & Slices**: Decomposed by layer order, no file overlap
+3. **Done when**: Specific completion criteria for each Slice (detailed enough to write in verify.md)
+4. **Rollback Strategy**: How far to roll back if you need to abandon mid-way
+
+### Traits of a Good Epic Plan
+
+- Reading just the Slice descriptions gives the Developer a clear sense of what to build
+- Files listed in each Slice do not overlap (within the same Stage)
+- Completion criteria are measurable (tests, visual confirmation, lint passing)
+- If Open Questions remain, the affected Slice is deferred to a later Stage
+
+### Signs of a Bad Epic Plan
+
+- Only says "implement it" with no completion criteria
+- A single Slice touches 10+ files
+- Slices in the same Stage modify shared files
+- There is a "everything else" Slice (scope is unclear)
+- Open Questions exist but are placed in the first Stage
+
+---
+
+## How to Execute
+
+### Automatic Execution (Recommended)
 
 ```bash
-# Epic 분해 + Stage별 자동 실행
-./scripts/run-epic.sh "Epic 1 — 사용자 인증 시스템"
+# Epic decomposition + automatic per-Stage execution
+./scripts/run-epic.sh "Epic 1 — User Authentication System"
 
-# 기존 Epic plan이 있으면 자동 감지하여 재사용
+# Automatically detects and reuses existing Epic plan
 ./scripts/run-epic.sh 1
 ```
 
-동작 순서:
-1. `/plan Epic N` → epic plan 생성 (`outputs/plans/epic-N-plan.md`)
-2. Stage & Slice 파싱
-3. Stage별 실행:
-   - 단일 Slice → 순차 (Reviewer가 커밋)
-   - 복수 Slice → 병렬 (`--no-commit` + Stage 통합 커밋)
-4. 모든 Stage 완료 → EPIC COMPLETE
+Execution order:
+1. `/plan Epic N` -> generates epic plan (`outputs/plans/epic-N-plan.md`)
+2. Stage & Slice parsing
+3. Per-Stage execution:
+   - Single Slice -> sequential (Reviewer commits)
+   - Multiple Slices -> parallel (`--no-commit` + Stage integrated commit)
+4. All Stages complete -> EPIC COMPLETE
 
-### 수동 실행
+### Manual Execution
 
 ```bash
-# 1. Epic plan 만들기
-/plan Epic 1 — 사용자 인증 시스템
+# 1. Create Epic plan
+/plan Epic 1 — User Authentication System
 
-# 2. 각 Slice를 순서대로 실행
-/plan Task 1 — 회원가입 DB 스키마
-/develop Task 1 — 회원가입 DB 스키마
-/review Task 1 — 회원가입 DB 스키마
+# 2. Execute each Slice in order
+/plan Task 1 — Signup DB Schema
+/develop Task 1 — Signup DB Schema
+/review Task 1 — Signup DB Schema
 
-/plan Task 2 — 회원가입 API
-/develop Task 2 — 회원가입 API
-/review Task 2 — 회원가입 API
+/plan Task 2 — Signup API
+/develop Task 2 — Signup API
+/review Task 2 — Signup API
 ```
 
-수동 실행은 세밀한 제어가 필요할 때 쓴다.
-중간에 방향을 바꾸거나, 특정 Slice만 다시 하거나, 병렬이 아닌 순차로 하고 싶을 때.
+Manual execution is for when fine-grained control is needed.
+When you want to change direction mid-way, re-do a specific Slice, or run sequentially instead of in parallel.
 
-### 실패 시 복구
+### Failure Recovery
 
 ```
-Stage 2에서 Slice B가 실패한 경우:
+If Slice B fails in Stage 2:
 
-1. 로그 확인: /tmp/프로젝트명-run/task-slice-1/stdout.log
-2. REQUEST_CHANGES이면:
-   /develop "Slice B — REQUEST_CHANGES 수정"
-   /review "Slice B — 재검사"
-3. 수정 후 나머지 Stage 이어서:
-   ./scripts/run-epic.sh 1  (이미 완료된 plan 재사용)
+1. Check logs: /tmp/project-name-run/task-slice-1/stdout.log
+2. If REQUEST_CHANGES:
+   /develop "Slice B — fix REQUEST_CHANGES"
+   /review "Slice B — re-inspect"
+3. After fixing, continue with remaining Stages:
+   ./scripts/run-epic.sh 1  (reuses already completed plan)
 ```
 
 ---
 
-## Epic Plan 예시
+## Epic Plan Example
 
 ```markdown
 # Epic Plan
 
 ## Epic
-Epic 1 — 회원가입 기능
+Epic 1 — Signup Feature
 
 ## Goal
-이메일/비밀번호로 회원가입하고, 가입 즉시 로그인되어 메인 화면으로 이동한다.
+Users sign up with email/password, and upon signup are immediately logged in and navigated to the main screen.
 
 ## Context
-- User need: 현재 게스트 모드만 가능, 데이터 저장 불가
-- Related docs: docs/project-plan.md의 Feature 1
-- Dependencies: Supabase Auth 설정 완료
+- User need: Currently only guest mode is available, data cannot be saved
+- Related docs: Feature 1 in docs/project-plan.md
+- Dependencies: Supabase Auth setup complete
 
 ## Stages & Slices
 
 ### Stage 1
-#### Slice 1: DB 스키마 + RLS
-- **What:** users 테이블, profiles 테이블, RLS 정책
+#### Slice 1: DB Schema + RLS
+- **What:** users table, profiles table, RLS policies
 - **Files:** supabase/migrations/001_auth.sql
 - **Depends on:** (none)
-- **Done when:** 마이그레이션 성공 + RLS 테스트 통과
+- **Done when:** Migration succeeds + RLS tests pass
 
 ### Stage 2
-#### Slice 2: Auth 서비스
-- **What:** 회원가입 + 로그인 + 로그아웃 API
+#### Slice 2: Auth Service
+- **What:** Signup + Login + Logout API
 - **Files:** src/services/auth_service.dart, src/models/user.dart
-- **Depends on:** Stage 1 (users 테이블)
-- **Done when:** 유닛 테스트 통과 (가입/로그인/로그아웃)
+- **Depends on:** Stage 1 (users table)
+- **Done when:** Unit tests pass (signup/login/logout)
 
-#### Slice 3: Auth 상태 관리
-- **What:** AuthProvider + 로그인 상태 감지
+#### Slice 3: Auth State Management
+- **What:** AuthProvider + login state detection
 - **Files:** src/providers/auth_provider.dart
-- **Depends on:** Stage 1 (users 테이블)
-- **Done when:** Provider 테스트 통과
+- **Depends on:** Stage 1 (users table)
+- **Done when:** Provider tests pass
 
 ### Stage 3
-#### Slice 4: 회원가입 화면
-- **What:** 이메일/비밀번호 입력 폼 + 유효성 검사 + 에러 표시
+#### Slice 4: Signup Screen
+- **What:** Email/password input form + validation + error display
 - **Files:** src/screens/signup_screen.dart, src/widgets/auth_form.dart
 - **Depends on:** Slice 2 (auth_service), Slice 3 (auth_provider)
-- **Done when:** 빈 폼 제출 시 에러 + 정상 입력 시 가입 성공 + 메인으로 이동
+- **Done when:** Error on empty form submit + successful signup on valid input + navigation to main screen
 
 ## Epic Acceptance Criteria
-- [ ] 이메일/비밀번호로 가입 가능
-- [ ] 가입 후 자동 로그인 + 메인 이동
-- [ ] 빈 값/중복 이메일 에러 처리
-- [ ] lint + test 통과
+- [ ] Can sign up with email/password
+- [ ] Auto-login after signup + navigate to main
+- [ ] Empty value/duplicate email error handling
+- [ ] lint + test pass
 
 ## Open Questions
-- 소셜 로그인은 이 Epic에 포함하지 않음 (별도 Epic)
+- Social login is not included in this Epic (separate Epic)
 
 ## Rollback Strategy
-- Stage 1만 완료된 경우: 마이그레이션만 남기고 나머지 revert
-- Stage 2까지 완료된 경우: API는 유지, UI만 revert 가능
+- If only Stage 1 is complete: Keep migrations, revert everything else
+- If Stage 2 is complete: Keep APIs, UI-only revert is possible
 ```
 
-이 예시에서 Stage 2의 Slice 2와 Slice 3는 파일이 겹치지 않으므로 병렬 실행된다.
-Stage 3의 Slice 4는 둘 다에 의존하므로 반드시 Stage 2 완료 후 실행된다.
+In this example, Slice 2 and Slice 3 in Stage 2 have no file overlap, so they run in parallel.
+Slice 4 in Stage 3 depends on both, so it must run after Stage 2 is complete.
 
-### Multi-Repo 예시
+### Multi-Repo Example
 
-Multi-repo 워크스페이스에서는 `**Repo:**` 필드와 파일 경로에 repo 접두사를 붙인다:
+In multi-repo workspaces, add the `**Repo:**` field and prefix file paths with the repo name:
 
 ```markdown
 ### Stage 2
 #### Slice 2: Auth API
-- **What:** 회원가입 + 로그인 API
+- **What:** Signup + Login API
 - **Repo:** backend
 - **Files:** backend/src/services/auth.ts, backend/src/routes/auth.ts
 - **Depends on:** Stage 1
-- **Done when:** API 테스트 통과
+- **Done when:** API tests pass
 
 #### Slice 3: Auth UI
-- **What:** 로그인 화면
+- **What:** Login screen
 - **Repo:** frontend
 - **Files:** frontend/src/pages/login.tsx, frontend/src/hooks/useAuth.ts
 - **Depends on:** Stage 1
-- **Done when:** 로그인 폼 표시 + API 연동
+- **Done when:** Login form displays + API integration works
 ```
 
-Slice 2와 3은 서로 다른 repo만 수정하므로 같은 Stage에서 병렬 실행 가능.
+Slices 2 and 3 modify only different repos, so they can run in parallel within the same Stage.

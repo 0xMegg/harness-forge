@@ -1,0 +1,28 @@
+[
+  {
+    "id": "proposal-b-computational-before-inferential",
+    "title": "Run computational checks before inferential \u2014 lint/test before LLM review",
+    "source": [
+      "ws-martinfowler-harness"
+    ],
+    "source_urls": [
+      "https://martinfowler.com/articles/harness-engineering.html"
+    ],
+    "description": "Run computational checks (lint/test) before inferential checks (LLM review). Never waste LLM tokens reviewing code with syntax errors. Enforce ordering: lint \u2192 test \u2192 pass \u2192 then code review.",
+    "target_file": "src/.claude/rules/gotchas.md",
+    "change_type": "rule",
+    "risk": "low",
+    "fitness": {
+      "automation": 2,
+      "friction": 2,
+      "hard_conversion": 2,
+      "token_efficiency": 2,
+      "measurability": 2,
+      "total": 10
+    },
+    "proposed_text": "- Run lint/test before requesting code review \u2014 computational checks (lint, type-check, test) must pass before LLM-based review. Never waste review cycles on code with syntax errors",
+    "verdict": "KEEP",
+    "gate2_baseline": 65,
+    "gate2_new_score": 65
+  }
+]

@@ -1,12 +1,12 @@
 ---
 name: bug-fix
 description: >
-  버그 수정 워크플로. 다음과 같은 요청에 활성화:
-  "버그 수정해 줘", "이거 왜 안 돼?", "에러 발생", "동작이 이상해",
-  "regression 생겼어", "이전에 되던 게 안 됨", "fix this bug",
+  Bug fix workflow. Activate on requests like:
+  "fix this bug", "why isn't this working?", "error occurred", "behaving strangely",
+  "regression found", "this used to work but doesn't anymore", "fix this bug",
   "broken", "not working"
-  다음에는 활성화하지 않음:
-  "리팩토링해 줘", "새 기능 추가", "성능 개선", "코드 정리"
+  Do NOT activate on:
+  "refactor this", "add a new feature", "improve performance", "clean up code"
 version: 3.0.0
 ---
 
@@ -64,8 +64,8 @@ Fix the bug with minimal blast radius and full verification.
 - Changing too many files at once
 - Forgetting to add a regression test
 - Mixing scope — doing refactoring alongside the fix
-- 불확실한 원인은 추측하지 말고 "확인 필요"로 표시
-- 3회 이상 가설이 틀리면 사람에게 에스컬레이션
-- 에러 메시지만 보고 원인을 단정하지 말 것 — 실제 코드 경로를 반드시 추적
+- Do not guess uncertain root causes — mark as "needs confirmation"
+- If the hypothesis fails 3 or more times, escalate to a human
+- Do not assume the cause from the error message alone — always trace the actual code path
 - {{PITFALL_1}}
 - {{PITFALL_2}}

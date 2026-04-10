@@ -2,7 +2,7 @@
 
 ## Run
 - Timestamp: [YYYY-MM-DD HH:MM:SS]
-- Duration: [M분 S초]
+- Duration: [Mm Ss]
 - Mode: [full / scan / judge]
 
 ## Collection (Phase 1)
@@ -40,7 +40,7 @@
 - Delta: [+/-N]
 
 ## Applied Details
-[적용된 변경 사항 요약]
+[Summary of applied changes]
 
 ## Rejected Details
-[탈락된 제안과 이유]
+[Rejected proposals and reasons]

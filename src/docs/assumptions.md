@@ -1,40 +1,40 @@
 # Component Assumption Registry
 
-> "하네스의 모든 컴포넌트는 모델 한계에 대한 가정을 인코딩한다.
-> 그 가정은 스트레스 테스트할 가치가 있다."
+> "Every component in a harness encodes an assumption about model limitations.
+> Those assumptions are worth stress-testing."
 > — [Harness Design for Long-Running Apps](https://www.anthropic.com/engineering/harness-design-long-running-apps)
 
-모델이 발전하면 가정도 재평가해야 한다.
-컴포넌트를 **하나씩 제거하며** 영향을 측정한다 (한번에 여러 개 X).
+As models improve, assumptions must be re-evaluated.
+Remove components **one at a time** and measure the impact (never multiple at once).
 
 ---
 
 ## Registry
 
-| Component | 가정 | 무효화 테스트 | 유효? | 최종 확인 |
+| Component | Assumption | Invalidation Test | Valid? | Last Checked |
 |-----------|------|-------------|-------|----------|
-| **3-Role 분리** (Planner/Developer/Reviewer) | 모델은 생성하면서 동시에 객관적으로 평가할 수 없다 (GAN 패턴) | 단일 세션에서 생성+평가 → 이슈 발견율 비교 | ✅ 유효 | 2026-04 |
-| **별도 `claude -p` 세션** | 긴 세션에서 컨텍스트 오염이 품질을 떨어뜨린다 | 3-Role을 단일 세션으로 실행 → 품질 비교 | ⚠️ 약화 (Opus 4.6은 2시간+ OK, 하지만 GAN 분리 자체는 여전히 유효) | 2026-04 |
-| **Context Reset 우선** | Compaction은 "context anxiety"를 유발한다 | /compact 사용 vs 새 세션 → 조기 마무리 빈도 비교 | ✅ 유효 | 2026-04 |
-| **Anti-Dismissal Rule** | 모델은 자기가 찾은 이슈를 스스로 묵인한다 | anti-dismissal 프롬프트 유무 → 이슈 발견/보고율 비교 | ✅ 유효 | 2026-04 |
-| **Live Verification** | 정적 코드 리뷰만으로는 런타임 버그를 놓친다 | 정적 리뷰 only vs 라이브 포함 → 발견 이슈 수 비교 | ✅ 유효 | 2026-04 |
-| **Epic Stage 분해** | 모델은 10+ 파일, 다중 관심사를 한 세션에서 처리 못한다 | 10파일 태스크를 분해 없이 실행 → 성공률 측정 | ⚠️ 약화 (Epic Lite 도입) | 2026-04 |
-| **ITERATE verdict** | 단일 pass에서 디자인/UI 품질이 수렴하지 않는다 | 반복 0 vs 반복 3 → 디자인 품질 비교 | ✅ 유효 (블로그: 5-15회 반복이 효과적) | 2026-04 |
-| **post-edit-lint hook** | 모델이 lint를 잊거나 건너뛴다 | hook 제거 → 리뷰에서 lint 실패 발견 빈도 측정 | ✅ 유효 (저비용 보험) | 2026-04 |
-| **post-edit-test hook** | 모델이 관련 테스트 실행을 건너뛴다 | hook 제거 → 리뷰에서 테스트 실패 발견 빈도 측정 | ✅ 유효 (저비용 보험) | 2026-04 |
-| **Secret detection hook** | 모델이 실수로 비밀을 커밋할 수 있다 | 방어적 조치 — 모델 능력과 무관하게 유지 | ✅ 항상 유효 | 2026-04 |
-| **Quality Criteria 가중치** | 가중치 없으면 기능만 통과하는 제네릭 결과에 APPROVE | 가중치 유무 → 디자인 품질 비교 | ✅ 유효 (블로그 실험 결과) | 2026-04 |
-| **Handoff overwrite 모델** | Context reset 환경에서 누적 핸드오프는 컨텍스트 낭비 | 누적 vs overwrite → 세션 시작 시 읽기 시간/토큰 비교 | ✅ 유효 | 2026-04 |
+| **3-Role separation** (Planner/Developer/Reviewer) | The model cannot objectively evaluate while simultaneously generating (GAN pattern) | Run generation + evaluation in a single session -> compare issue detection rates | ✅ Valid | 2026-04 |
+| **Separate `claude -p` sessions** | Context contamination in long sessions degrades quality | Run 3-Role in a single session -> compare quality | ⚠️ Weakened (Opus 4.6 handles 2+ hours OK, but GAN separation itself remains valid) | 2026-04 |
+| **Context Reset first** | Compaction causes "context anxiety" | /compact usage vs new session -> compare premature wrap-up frequency | ✅ Valid | 2026-04 |
+| **Anti-Dismissal Rule** | The model silently dismisses issues it found itself | With vs without anti-dismissal prompt -> compare issue detection/reporting rates | ✅ Valid | 2026-04 |
+| **Live Verification** | Static code review alone misses runtime bugs | Static review only vs including live verification -> compare issues found | ✅ Valid | 2026-04 |
+| **Epic Stage decomposition** | The model cannot handle 10+ files with multiple concerns in a single session | Run a 10-file task without decomposition -> measure success rate | ⚠️ Weakened (Epic Lite introduced) | 2026-04 |
+| **ITERATE verdict** | Design/UI quality does not converge in a single pass | 0 iterations vs 3 iterations -> compare design quality | ✅ Valid (blog: 5-15 iterations are effective) | 2026-04 |
+| **post-edit-lint hook** | The model forgets or skips lint | Remove hook -> measure lint failure frequency found during review | ✅ Valid (low-cost insurance) | 2026-04 |
+| **post-edit-test hook** | The model skips running related tests | Remove hook -> measure test failure frequency found during review | ✅ Valid (low-cost insurance) | 2026-04 |
+| **Secret detection hook** | The model may accidentally commit secrets | Defensive measure — maintained regardless of model capability | ✅ Always valid | 2026-04 |
+| **Quality Criteria weighting** | Without weighting, generic results that only pass functionality get APPROVE | With vs without weighting -> compare design quality | ✅ Valid (blog experiment results) | 2026-04 |
+| **Handoff overwrite model** | In a context-reset environment, cumulative handoffs waste context | Cumulative vs overwrite -> compare read time/tokens at session start | ✅ Valid | 2026-04 |
 
 ---
 
-## 점검 주기
-- 모델 메이저 업데이트 시 (예: Opus 5.x)
-- 하네스 버전 업그레이드 시
-- 같은 실패가 3회 이상 반복될 때
+## Review Cadence
+- On model major updates (e.g., Opus 5.x)
+- On harness version upgrades
+- When the same failure repeats 3+ times
 
-## 점검 방법
-1. 의심되는 컴포넌트 **하나만** 제거
-2. 동일한 태스크를 제거 전/후로 실행
-3. 5대 지표(성공률, 사람수정량, 시간, 토큰, 실패유형)로 비교
-4. 결과에 따라 "유효?" 컬럼 업데이트
+## Review Method
+1. Remove **only one** suspected component
+2. Run the same task before and after removal
+3. Compare using 5 key metrics (success rate, human edit volume, time, tokens, failure types)
+4. Update the "Valid?" column based on results

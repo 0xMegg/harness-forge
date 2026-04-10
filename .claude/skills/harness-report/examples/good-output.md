@@ -1,24 +1,24 @@
 # Example: Harness Report Good Output
 
-## 요청
-"하네스 점수 확인해"
+## Request
+"Check harness score"
 
-## 결과
+## Result
 ```
-하네스 품질 점수: 67/100
+Harness quality score: 67/100
 
-영역별 현황:
-- Rules:       13/20 (5 files, 내용 충실)
+Per-area breakdown:
+- Rules:       13/20 (5 files, solid content)
 - Skills:      15/20 (3 skills, 2 with examples)
-- Hooks:       15/15 (4 hooks, 모두 실행 가능) ✓ 만점
+- Hooks:       15/15 (4 hooks, all executable) ✓ perfect score
 - Templates:   11/15 (11 templates, 4 filled)
 - Evaluations:  4/10 (2 records)
 - Test/Lint:    9/20 (lint pass, tests partial)
 
-개선 우선순위:
-1. Evaluations (+6): 작업 완료 후 evaluation.md 작성 2건 추가
-2. Skills (+5): code-review 스킬에 examples/ 추가
-3. Test/Lint (+11): 테스트 커버리지 확대
+Improvement priorities:
+1. Evaluations (+6): Write 2 more evaluation.md entries after completing tasks
+2. Skills (+5): Add examples/ to code-review skill
+3. Test/Lint (+11): Expand test coverage
 
-baseline 갱신 완료: harvest/baseline.json
+Baseline updated: harvest/baseline.json
 ```
