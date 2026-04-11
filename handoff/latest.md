@@ -1,3 +1,91 @@
+# Handoff — 2026-04-11 PM (다음 세션 우선 작업)
+
+## 🔴 Priority: harness-report.sh evaluations fallback 결함 + 이번 배치 기록 정정
+
+### 배경 (왜)
+
+실무 투입 전 종합 점검에서 score discrepancy 발견:
+- `bash scripts/harness-report.sh quick --target src/` → **55/100**
+- `bash scripts/harness-report.sh quick --target ../claude-code-harness-template/` → **53/100**
+
+차이는 evaluations 영역(2/10 vs 0/10)에서만 발생. 원인은 `scripts/harness-report.sh` evaluations 섹션의 fallback 로직:
+
+```bash
+for candidate in "$TARGET_DIR/outputs/evaluations" "$PROJECT_DIR/outputs/evaluations"; do
+  if [ -d "$candidate" ]; then
+    eval_count=$(find "$candidate" -name '*.md' -type f | wc -l | tr -d ' ')
+    break
+  fi
+done
+```
+
+- src/ 측정 시: `src/outputs/evaluations` 없음 → fallback to `trend-harvester/outputs/evaluations` → `20260410-harvest-e2e.md` 1건 발견 → 2/10 (인공물)
+- target 측정 시: `target/outputs/evaluations` 빈 디렉토리로 존재 → fallback 안 함 → 0/10 (정확)
+
+**결론**: TARGET 측정에 PROJECT 디렉토리를 끌어오는 fallback 자체가 측정 정의 위반. **production 실측 baseline은 53/100이 정답**, src/ 측정의 55는 dev 환경 인공물.
+
+### 부수 결과: 이번 /harvest 배치 기록의 거짓 정보
+
+이번 세션에서 작성된 다음 문서들이 **잘못된 baseline 55를 기준으로 작성됨**:
+- `harvest/baseline.json` (score: 55)
+- `harvest/applied/20260411-040351-no-verify-deny-applied.json` (gate2.baseline_score: 55, post_apply_score: 55)
+- `harvest/reports/20260411-040351.md` ("true baseline 55", "Phase 3 transient anomaly" 서술)
+- `handoff/latest.md` 본 파일의 아래 "Baseline 정정" 문단 ("Phase 3의 53은 transient anomaly로 기록")
+
+특히 **"Phase 3의 53은 transient anomaly" 설명은 거짓**. 실제로는 Phase 3의 53이 정확한 production 측정값이고, Phase 3.5 sandbox에서 나온 55가 fallback 인공물. 정정 필요.
+
+### 작업 순서 (9 step)
+
+1. **`scripts/harness-report.sh` 수정** — evaluations 섹션 fallback 제거. TARGET_DIR/outputs/evaluations 만 측정.
+   - 위치: `scripts/harness-report.sh` 행 350 부근 (`# 7. Evaluations`)
+   - 변경: `for candidate in ... do` 루프 삭제, 단일 경로만 사용
+2. **`src/scripts/harness-report.sh` 동일 수정** — 두 파일 항상 동기화 필요 (이전 handoff 규칙)
+3. **`shellcheck scripts/harness-report.sh src/scripts/harness-report.sh`** 통과 확인
+4. **양쪽 baseline 재측정**
+   ```bash
+   bash scripts/harness-report.sh quick --target src/
+   bash scripts/harness-report.sh quick --target ../claude-code-harness-template/
+   ```
+   양쪽 모두 **53/100**이 나와야 정상 (둘 다 evaluations 0/10)
+5. **`harvest/baseline.json` 정정** — score 55 → 53, evaluations detail "0 records"로
+6. **`harvest/applied/20260411-040351-no-verify-deny-applied.json` 정정**
+   - `gate2.baseline_score`: 55 → 53
+   - `gate2.post_apply_score`: 55 → 53
+   - `gate2.note`: "harness-report does not measure deny list contents — score unchanged but no regression. Baseline corrected from earlier 55 (fallback artifact) to 53 (true production value)."
+7. **`harvest/reports/20260411-040351.md` 정정**
+   - "Rebaseline run (sandbox prep): 55/100" 서술 삭제 또는 정정
+   - "Phase 3 transient anomaly" 서술 → "Phase 3의 53이 정확한 production 측정값. Sandbox에서 본 55는 harness-report.sh fallback 로직 결함으로 인한 인공물 (다음 세션에서 fix)"
+   - Discussion 섹션에 fallback 결함 설명 추가
+8. **양쪽 repo 커밋 + sync**
+   - this repo: `fix: harness-report — evaluations fallback 제거 + Run 20260411-040351 baseline 정정` (script 수정 + 기록 정정 묶어서)
+   - `bash scripts/build-template.sh` 실행
+   - target repo: `chore: template sync — harness-report fallback fix`
+9. **handoff/latest.md 정정 + 이 우선작업 블록 삭제** — 새 "What Changed" 블록으로 대체
+
+### 추가 검증 (선택)
+
+- `outputs/evaluations/` 가 비어 있는 상황에서 production 사용자가 실제로 어떻게 evaluation 파일을 만들지 워크플로 명시 필요. (Proposal B "commit-time eval 강제"가 다시 후보가 될 수 있음.)
+- handoff에 적힌 "Phase 3에서 evaluations 점수가 0이 나왔다가 sandbox 재측정에서 2가 나온 transient 원인 조사" TODO는 이번 fix로 해소됨 — 제거.
+
+### 다음 세션 시작 시 읽을 파일
+
+1. `handoff/latest.md` (이 파일, auto-load)
+2. `scripts/harness-report.sh` (행 345~365 evaluations 섹션)
+3. `src/scripts/harness-report.sh` (동일 섹션)
+4. `harvest/reports/20260411-040351.md` (정정 대상)
+5. `harvest/applied/20260411-040351-no-verify-deny-applied.json` (정정 대상)
+
+### 컨텍스트 (이번 세션 결과 요약)
+
+- Run ID: `20260411-040351`
+- 적용 커밋 (this repo): `baebe9d` — settings.json deny에 `--no-verify` 4 패턴
+- 기록 커밋 (this repo): `97d9eba` — Phase 5 records (이게 정정 대상)
+- target sync 커밋: `8687b02` — settings.json sync
+- 적용 자체는 정상, 적용 결과 기록의 baseline 숫자만 잘못됨
+- 이번 세션 신규 메모리: `feedback_scoring_integrity.md` (점수 challenge 시 원래 근거 우선, 압력 재채점 금지)
+
+---
+
 # Handoff — 2026-04-11 (Harvest Batch: --no-verify deny)
 
 ## What Changed (2026-04-11 PM)
