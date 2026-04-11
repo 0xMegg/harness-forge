@@ -1,3 +1,33 @@
+# Handoff — 2026-04-11 PM-3 (Rename: trend-harvester → harness-forge)
+
+## What Changed (2026-04-11 PM-3)
+- **프로젝트 우산 rename**: `trend-harvester` → `harness-forge` (this repo `7d8a79b`).
+  - 로컬 경로: `~/Dev/13.claude/templates/trend-harvester/` → `~/Dev/13.claude/templates/harness-forge/`
+  - Memory 경로: `~/.claude/projects/-Users-mero-Dev-13-claude-templates-trend-harvester/` → `-...-harness-forge/` (`feedback_*` 3건 보존)
+  - `CLAUDE.md` Project Name 갱신, `src/.claude/settings.local.json` 절대경로 갱신
+  - `trend-harvest` skill은 별도 모듈로 그대로 유지 (umbrella 이름만 변경)
+- **새 세션 검증 (PM-3 verification)**:
+  - `bash scripts/harness-report.sh quick --target src/` → **53/100 회귀 없음** (rules 5, skills 12, hooks 11, guidance 7, scripts 10, templates 8, evaluations 0, test_lint skip)
+  - `bash scripts/run-harvest.sh status` → 정상 (baseline 53, applied 9, seen 32) — `settings.local.json` 절대경로 권한 정상 작동
+  - `git remote -v` → origin 보존 (URL은 옛 `trend-harvester.git` 그대로 — GitHub repo rename은 미수행)
+  - `git log --oneline -5` → rename 커밋 + PM-2 hotfix 4개 보존
+  - MEMORY.md 자동 로드 + feedback 3건 보존 확인
+
+### Current State (2026-04-11 PM-3)
+- Baseline: **53/100** (PM-2 값 그대로, rename은 측정에 영향 없음)
+- this repo: origin/main 대비 5 commits ahead (PM-2의 4 + rename `7d8a79b`)
+- target repo: origin/main 대비 2 commits ahead (PM-2 sync 그대로)
+- GitHub remote URL: 옛 이름 (`0xMegg/trend-harvester.git`) — 로컬-원격 이름 불일치 상태
+- 옛 memory 디렉토리 백업 보존 중 (`-...-trend-harvester/`)
+
+## What's Next (2026-04-11 PM-3)
+- [ ] (결정 필요) GitHub repo도 `trend-harvester` → `harness-forge`로 rename할지 — 결정 후 origin URL 갱신
+- [ ] (안정화 후) 옛 memory 백업 디렉토리 `-...-trend-harvester/` 수동 삭제
+- [ ] (필요 시) 두 repo 모두 origin push (this repo 5 ahead, target repo 2 ahead)
+- [ ] (이월) PM-2의 outputs/evaluations 워크플로 명시 / Proposal B 재검토 / audit-coherence.sh / counterexample / 병렬 검증
+
+---
+
 # Handoff — 2026-04-11 PM-2 (Hotfix: harness-report fallback 제거)
 
 ## What Changed (2026-04-11 PM-2)
