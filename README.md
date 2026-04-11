@@ -83,23 +83,28 @@ trend-harvester/
 │   └── reports/                 # 실행 보고서
 ├── src/                         # 하네스 템플릿 소스 (배포 대상)
 │   ├── .claude/
-│   │   ├── hooks/               # 6 훅 (block-dangerous, post-edit-*,
-│   │   │                        #        pre-commit-branch-check)
+│   │   ├── hooks/               # 6 훅 (block-dangerous, post-edit-check/lint/test,
+│   │   │                        #        post-edit-size-check, pre-commit-branch-check)
 │   │   └── rules/               # api/frontend/testing/git/gotchas
+│   ├── .mcp.json.example        # MCP 서버 스캐폴드 (사용자가 .mcp.json으로 복사·편집)
 │   ├── scripts/
 │   │   ├── run-task.sh          # 3-Role + 자동 task/{id} 브랜치
 │   │   ├── run-epic.sh          # Epic + overlap gate + worktree opt-in
-│   │   └── diagnose.sh          # 실패 상태 자동 진단 (exit 0/1)
+│   │   ├── diagnose.sh          # 실패 상태 자동 진단 (exit 0/1)
+│   │   └── mcp-check.sh         # .mcp.json 인라인 토큰·scope 검증
+│   ├── context/
+│   │   ├── mcp-policy.md        # MCP 연결 체크리스트 + .mcp.json 가이드
+│   │   └── working-rules.md     # 세션 분할 체크리스트 + 파일 크기 상한
 │   └── docs/
 │       ├── epic-guide.md        # Epic 분할 + 병렬 안전장치
 │       └── troubleshooting.md   # 5개 실패 시나리오 복구
 ├── context/
-│   ├── harvest-policy.md        # 자동 적용 정책 (2단계 판단 의무)
-│   ├── mcp-policy.md            # MCP 연결 체크리스트
-│   └── working-rules.md         # 워크플로우 + 세션 분할 + token 예산
+│   └── harvest-policy.md        # 프로젝트 자체 적용 정책 (2단계 판단 의무)
 ├── docs/harvest-guide.md        # 파이프라인 상세 가이드
 └── templates/                   # 제안서/보고서 형식
 ```
+
+> `src/context/` vs 루트 `context/`: 루트는 **harvester 자체 운영 정책**(파이프라인이 참고), `src/context/`는 **템플릿으로 배포되는 운영 가이드**(프로젝트가 참고).
 
 ## Hardening Highlights (2026-04)
 
@@ -112,6 +117,7 @@ trend-harvester/
 | 브랜치 격리 | `run-task.sh` `task/{id}` / `run-epic.sh` `epic/{RUN_ID}` 자동 분기 + `pre-commit-branch-check.sh` 훅 | main 직접 커밋 차단 (exit 2), APPROVE 시 ff-only 자동 병합, `HARVEST_ALLOW_MAIN=1` 우회 |
 | 병렬 안정성 | `run-epic.sh` overlap gate (상시) + `HARVEST_PARALLEL_WORKTREE=1` git worktree 격리 (opt-in) | slice 간 파일 충돌 사전 차단, 선택적 워크트리 완전 격리 |
 | MCP 실전 설정 | `.mcp.json.example` 스캐폴드 + `mcp-policy.md` 5항목 체크리스트 + `scripts/mcp-check.sh` 검증기 | inline 토큰(`ghp_*`, `sk-*`, `sk-ant-*`, `xoxX-*`, `AKIA...`) 감지, `command` 필드 누락 차단, bare `/`·`~` scope 거부 |
+| Harness score 포화 해제 | `harness-report.sh` 8영역 재설계 + Rules/Guidance 깊이 메트릭 + Hooks/Scripts HARD enforcement 카운트 | Phase 3.5 Gate 2 판별력 복원 — 이전 체계에서 src/ 65/100 고정 → 현재 53/100 + headroom 47. 규칙 1개(300줄) 추가 시 +6점 이동 실측 확인 |
 
 상세 적용 내역은 `harvest/applied/` 각 JSON과 `handoff/latest.md` 참고.
 
@@ -134,16 +140,20 @@ trend-harvester/          claude-code-harness-template/
 
 ## Harness Score
 
-`bash scripts/harness-report.sh`로 측정. 6개 영역, 100점 만점.
+`bash scripts/harness-report.sh`로 측정. 8개 영역, 100점 만점 (2026-04-11 포화 방지 재설계).
 
 | 영역 | 배점 | 측정 기준 |
 |------|------|-----------|
-| Rules | 20 | 규칙 파일 수 + 내용 충실도 |
-| Skills | 20 | 스킬 수 + examples 유무 |
-| Hooks | 15 | hook 수 + 실행 권한 |
-| Templates | 15 | 템플릿 수 + 플레이스홀더 아닌 실제 내용 |
-| Evaluations | 10 | 평가 기록 수 |
-| Test/Lint | 20 | 린트/테스트 통과율 |
+| Rules | 20 | 파일 수(max 10) + 유효 라인 수 tier (200/400/600/800/1200) |
+| Skills | 15 | 스킬 수 + examples + Gotchas/Context Required 섹션 |
+| Hooks | 15 | 파일 수 + 전원 실행권한 보너스 + HARD exit/return 1 강제 수 |
+| Guidance | 10 | `context/` + `docs/` 파일 수 + 유효 라인 수 tier (200/500/1000/1500/2500) |
+| Scripts | 10 | 파일 수 + `exit 1/2` 또는 `set -euo pipefail` 강화 수 |
+| Templates | 10 | 파일 수 + 채워진 비율 (%) |
+| Evaluations | 10 | 평가 기록 수 (`outputs/evaluations/*.md`) |
+| Test/Lint | 10 | shellcheck + 프로젝트 테스트 통과율 (full 모드만) |
+
+> 재설계 이유: 이전 6개 영역 체계는 `rules 15/20, skills 20/20, hooks 15/15, templates 15/15`에서 포화해 Phase 3.5 HARD 게이트가 무력화됐다. 깊이 기반 메트릭(유효 라인 수)과 HARD enforcement 카운트(실제 `exit 1/2` 사용 수)를 도입해 Gate 2의 판별력을 복원했다. `context/` + `docs/`를 포함하는 `Guidance`와 hardening을 측정하는 `Scripts` 카테고리가 신설됐다.
 
 ## License
 

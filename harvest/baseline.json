@@ -1,27 +1,37 @@
 {
-  "score": 65,
+  "score": 53,
   "max": 100,
   "mode": "quick",
-  "timestamp": "2026-04-10T08:34:52Z",
+  "timestamp": "2026-04-11T03:44:00Z",
   "breakdown": {
     "rules": {
-      "score": 15,
+      "score": 5,
       "max": 20,
-      "detail": "5 files"
+      "detail": "5 files, 106 lines"
     },
     "skills": {
-      "score": 20,
-      "max": 20,
-      "detail": "3 skills, 3 with examples"
+      "score": 12,
+      "max": 15,
+      "detail": "3 skills, 3 with examples, 3 with gotchas"
     },
     "hooks": {
-      "score": 15,
+      "score": 11,
       "max": 15,
-      "detail": "6 hooks, 6 executable"
+      "detail": "6 hooks, 6 exec, 3 HARD"
+    },
+    "guidance": {
+      "score": 7,
+      "max": 10,
+      "detail": "16 files, 923 lines"
+    },
+    "scripts": {
+      "score": 10,
+      "max": 10,
+      "detail": "6 scripts, 5 HARD, 4 pipefail"
     },
     "templates": {
-      "score": 15,
-      "max": 15,
+      "score": 8,
+      "max": 10,
       "detail": "11 templates, 8 filled"
     },
     "evaluations": {
@@ -31,7 +41,7 @@
     },
     "test_lint": {
       "score": 0,
-      "max": 20,
+      "max": 10,
       "detail": "skipped (quick mode)"
     }
   }

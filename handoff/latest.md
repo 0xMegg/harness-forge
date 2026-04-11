@@ -1,3 +1,41 @@
+# Handoff — 2026-04-11 (Philosophy Audit + P1: harness-report 재설계)
+
+## What Changed (2026-04-11)
+- `hugh-kim.space/trend-harvester-analysis.html` 원본 철학과 현재 구현의 정합성 감사 수행. 감사 결과 → `/Users/mero/.claude/plans/immutable-weaving-parasol.md`
+- **판정: 마개조 아님.** 철학 HARD 코어 8개(5축·6단계·double-gating·autoresearch·HARD BLOCK·dedup·rollback·change_type) 모두 유지. 이탈 5건은 모두 "더 보수적 쪽"으로 원본보다 안전 강화. 유일한 실질 이슈는 harness-report 점수 체계 포화 1건.
+- **P1 실행 완료**: `harness-report.sh` 8영역 100점 재설계로 Gate 2 판별력 복원.
+  - 기존 6영역(포화) → 신규 8영역: Rules 20 / Skills 15 / Hooks 15 / **Guidance 10 (NEW)** / **Scripts 10 (NEW)** / Templates 10 / Evaluations 10 / Test-Lint 10
+  - 깊이 메트릭 도입: Rules는 파일 수 + 유효 라인 수 tier (200/400/600/800/1200), Guidance는 `context/` + `docs/` 통합 측정
+  - HARD enforcement 메트릭: Hooks는 `exit 1/2`/`return 1` 카운트, Scripts는 `exit 1/2` 또는 `set -euo pipefail` 카운트 — 원본 철학 Axis 3("HARD conversion")과 정렬
+  - baseline.json: **65/100 → 53/100** (기존엔 rules/hooks/templates 포화로 허수, 재설계 후 실측값)
+  - Gate 2 판별력 실측: HARD 훅 1개 추가 시 +1, 300줄 규칙 1개 추가 시 +6 확인
+  - shellcheck 통과
+  - `scripts/harness-report.sh` + `src/scripts/harness-report.sh` 동시 동기화 완료
+  - README.md `Harness Score` 섹션 + `Hardening Highlights` 테이블 갱신
+
+### Current State (2026-04-11)
+- Baseline: **53/100** (quick mode, target=src/)
+  - rules 5/20 (5 files, 106 lines) — rules 내용 얇음, 확장 여지 +15
+  - skills 12/15 (3 skills, 3 ex, 3 gotchas)
+  - hooks 11/15 (6 files, 3 with HARD exit) — 강화 여지 +4
+  - guidance 7/10 (16 files, 923 lines)
+  - scripts 10/10 (6 files, 5 HARD, 4 pipefail) — 사실상 포화 (작은 카테고리)
+  - templates 8/10 (11 files, 8 filled)
+  - evaluations 0/10 — `src/outputs/evaluations/` 없음
+  - test_lint 0/10 (quick 모드 skip)
+- Headroom: ~47점 — 향후 harvest 적용물이 움직일 공간 확보됨
+- `src/scripts/harness-report.sh` 업데이트됐으나 `../claude-code-harness-template/`로의 sync는 미실행 (타겟 리포에 기존 미커밋 M/D 다수 존재 → 사용자가 타겟 정리 후 `bash scripts/build-template.sh` 직접 실행 권장)
+
+## What's Next (2026-04-11)
+- [ ] `../claude-code-harness-template/`의 기존 미커밋 변경 정리 → `build-template.sh` 실행 → target repo에서 업데이트 커밋
+- [ ] [감사 P2] `scripts/audit-coherence.sh` 작성 — 원본 철학 6원칙/HARD 코어 8항목을 bash 체크리스트로 (plan 파일의 D섹션 참조)
+- [ ] [감사 P3] `context/harvest-policy.md`에 "왜 2단계 판단 의무"인가 rationale 한 줄 추가
+- [ ] [감사 P4 선택] 외부 소스 다양성 복원 원하면 RSS 2~3개 추가
+- [ ] fitness-filter examples에 counterexample 추가 (이전 handoff 미완료)
+- [ ] 병렬 안정성 실전 검증: `HARVEST_PARALLEL_WORKTREE=1`로 Epic dry-run
+
+---
+
 # Handoff — 2026-04-10 (Harvest Batch: 영상 분석 + user 3)
 
 ## What Changed
