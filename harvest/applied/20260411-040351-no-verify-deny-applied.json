@@ -1,0 +1,40 @@
+{
+  "id": "harvest-20260411-no-verify-deny",
+  "title": "Deny git commit --no-verify / -n in src/.claude/settings.json",
+  "run_id": "20260411-040351",
+  "applied_at": "2026-04-11T04:50:00Z",
+  "source_philosophy": "ws-trailofbits-settings-json + ws-pixelmojo-hooks-2026 — hooks must be structurally impossible to bypass",
+  "raw_source_ids": ["ws-trailofbits-settings-json", "ws-pixelmojo-hooks-2026", "gh-trailofbits-cc-config"],
+  "change_type": "rule",
+  "risk": "low",
+  "target_files": ["src/.claude/settings.json"],
+  "change_summary": "Added 4 entries to permissions.deny array to block git commit --no-verify and -n flag variations. Closes the bypass gap that previously allowed circumventing the entire hook chain (block-dangerous, pre-commit-branch-check, post-edit-lint, post-edit-test, post-edit-size-check).",
+  "deny_entries_added": [
+    "Bash(git commit * --no-verify *)",
+    "Bash(git commit * -n *)",
+    "Bash(git commit --no-verify*)",
+    "Bash(git commit -n*)"
+  ],
+  "fitness_score": {
+    "automation": 2,
+    "friction": 2,
+    "hard_conversion": 2,
+    "token_efficiency": 0,
+    "measurability": 1,
+    "total": 7
+  },
+  "policy_grade": "RECOMMEND",
+  "gate2": {
+    "baseline_score": 55,
+    "post_apply_score": 55,
+    "delta": 0,
+    "result": "pass",
+    "note": "harness-report does not measure deny list contents — score unchanged but no regression. Qualitative value: closes hook bypass gap."
+  },
+  "user_approval": {
+    "approved": true,
+    "approved_at": "2026-04-11T04:46:00Z",
+    "approval_text": "A만 적용하자"
+  },
+  "commit_sha": "baebe9d"
+}

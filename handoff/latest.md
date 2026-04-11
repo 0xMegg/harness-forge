@@ -1,3 +1,31 @@
+# Handoff — 2026-04-11 (Harvest Batch: --no-verify deny)
+
+## What Changed (2026-04-11 PM)
+- `/harvest` 풀 파이프라인 1회 실행 (Run ID: `20260411-040351`).
+- 외부 14건 수집 → Phase 2 0/14 통과 → 사용자 push에 따라 재심 → 3건 후보 추출 (A 7/10 RECOMMEND, B 7/10 REVIEW, C 6/10 REVIEW) → A만 적용.
+- **적용 항목**: `src/.claude/settings.json` permissions.deny에 `git commit --no-verify` / `-n` 4개 패턴 추가 (커밋 `baebe9d`).
+  - 봉쇄 갭: 기존 PreToolUse/PostToolUse 훅 체인 6종이 `--no-verify` 플래그 1개로 전부 우회 가능했음.
+- **Baseline 정정**: Phase 3 측정에서 53/100이 나왔으나 sandbox 재측정 결과 진짜 값은 **55/100**. 차이는 `evaluations` 영역에서 발생 (project-root fallback `outputs/evaluations/20260410-harvest-e2e.md` 1 record가 갑자기 카운트됨 — 원인 불명, 재현 가능). Phase 3의 53은 transient anomaly로 기록.
+- **Sycophancy 인시던트**: token_efficiency 채점에 대한 사용자 challenge에 즉시 점수를 올렸다가 반려당함. `feedback_scoring_integrity.md` 메모리 추가 (점수 challenge 시 원래 근거 설명이 우선, 압력에 의한 재채점 금지).
+
+### Current State (2026-04-11 PM)
+- Baseline: **55/100** (quick mode, target=src/)
+- src/.claude/settings.json: deny 엔트리 9 → 13
+- 변경 없음: rules/skills/hooks/scripts/templates/guidance/test_lint
+- Headroom: ~45점
+- 미적용 후보 보류: B (commit-time eval 강제, REVIEW), C (retry-counter hook, REVIEW)
+
+## What's Next (2026-04-11 PM)
+- [ ] Phase 3에서 evaluations 점수가 0이 나왔다가 sandbox 재측정에서 2가 나온 transient 원인 조사 (`harness-report.sh` 의 `find ... -type f` 결과가 fork timing에 의존하는지 확인)
+- [ ] 보류된 Proposal B (commit-time eval 강제) 실전 친화도 추가 검토 후 재투입 여부 판단 — `[no-eval]` 이스케이프가 남발될지 dry-run으로 확인 필요
+- [ ] 보류된 Proposal C (retry-counter) 현 형태로는 false-positive 우려, 재설계 시에만 재투입
+- [ ] (이전부터) `../claude-code-harness-template/`의 기존 미커밋 변경 정리 → `build-template.sh` 실행
+- [ ] (이전부터) `scripts/audit-coherence.sh` 작성
+- [ ] (이전부터) fitness-filter examples에 counterexample 추가
+- [ ] (이전부터) 병렬 안정성 실전 검증 (`HARVEST_PARALLEL_WORKTREE=1`)
+
+---
+
 # Handoff — 2026-04-11 (Philosophy Audit + P1: harness-report 재설계)
 
 ## What Changed (2026-04-11)

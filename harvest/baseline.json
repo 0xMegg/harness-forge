@@ -1,8 +1,8 @@
 {
-  "score": 53,
+  "score": 55,
   "max": 100,
   "mode": "quick",
-  "timestamp": "2026-04-11T03:44:00Z",
+  "timestamp": "2026-04-11T04:56:54Z",
   "breakdown": {
     "rules": {
       "score": 5,
@@ -27,7 +27,7 @@
     "scripts": {
       "score": 10,
       "max": 10,
-      "detail": "6 scripts, 5 HARD, 4 pipefail"
+      "detail": "6 scripts, 6 HARD, 4 pipefail"
     },
     "templates": {
       "score": 8,
@@ -35,9 +35,9 @@
       "detail": "11 templates, 8 filled"
     },
     "evaluations": {
-      "score": 0,
+      "score": 2,
       "max": 10,
-      "detail": "0 records"
+      "detail": "1 records"
     },
     "test_lint": {
       "score": 0,
