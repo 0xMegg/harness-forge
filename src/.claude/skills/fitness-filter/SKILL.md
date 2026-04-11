@@ -95,3 +95,4 @@ Output in `templates/harvest-proposal.md` format.
 - If HARD conversion is 0, it cannot be enforced as a rule, so effectiveness is low
 - If a similar item already exists in gotchas.md, treat as a duplicate rather than giving Friction 2 points
 - Do NOT invent specifics to pass the concreteness gate — if the input is vague, reject it as `abstract-proposal`
+- See `examples/bad-output.md` for calibration counterexamples (abstract proposals, plausible-but-sub-threshold docs, HARD=0 behavior asks). Re-read these whenever you catch yourself scoring something 6+ "because it sounds reasonable"
