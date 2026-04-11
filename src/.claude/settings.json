@@ -21,6 +21,10 @@
       "Bash(git push -f)",
       "Bash(git reset --hard)",
       "Bash(git clean -fd)",
+      "Bash(git commit * --no-verify *)",
+      "Bash(git commit * -n *)",
+      "Bash(git commit --no-verify*)",
+      "Bash(git commit -n*)",
       "Bash(chmod 777)",
       "Bash(curl * | bash)",
       "Bash(wget * | bash)"
