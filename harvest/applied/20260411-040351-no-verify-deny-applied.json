@@ -25,11 +25,11 @@
   },
   "policy_grade": "RECOMMEND",
   "gate2": {
-    "baseline_score": 55,
-    "post_apply_score": 55,
+    "baseline_score": 53,
+    "post_apply_score": 53,
     "delta": 0,
     "result": "pass",
-    "note": "harness-report does not measure deny list contents — score unchanged but no regression. Qualitative value: closes hook bypass gap."
+    "note": "harness-report does not measure deny list contents — score unchanged but no regression. Baseline corrected from earlier 55 (harness-report.sh evaluations fallback artifact) to 53 (true production value). Qualitative value: closes hook bypass gap."
   },
   "user_approval": {
     "approved": true,

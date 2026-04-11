@@ -351,13 +351,11 @@ echo -e "${CYAN}Checking evaluations...${NC}" >&2
 
 eval_score=0
 eval_count=0
-# Look in TARGET_DIR first, fall back to PROJECT_DIR (evaluations live at project root)
-for candidate in "$TARGET_DIR/outputs/evaluations" "$PROJECT_DIR/outputs/evaluations"; do
-  if [ -d "$candidate" ]; then
-    eval_count=$(find "$candidate" -name '*.md' -type f | wc -l | tr -d ' ')
-    break
-  fi
-done
+# Measure ONLY the target tree — never fall back to PROJECT_DIR (would conflate
+# dev environment artifacts with production target measurement).
+if [ -d "$TARGET_DIR/outputs/evaluations" ]; then
+  eval_count=$(find "$TARGET_DIR/outputs/evaluations" -name '*.md' -type f | wc -l | tr -d ' ')
+fi
 # 2 pt per evaluation, max 10
 eval_score=$((eval_count * 2 > 10 ? 10 : eval_count * 2))
 add_score "evaluations" "$eval_score" 10 "${eval_count} records"
