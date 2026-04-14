@@ -114,6 +114,18 @@ echo "[6.5/7] Copying automation scripts..."
 cp "$TEMPLATE_DIR/scripts/"*.sh "$TARGET_DIR/scripts/"
 chmod +x "$TARGET_DIR/scripts/"*.sh
 
+# Write harness-origin for auto-update (points to template repo)
+cat > "$TARGET_DIR/.claude/.harness-origin" << 'HEOF'
+# Harness template origin — used by run-epic/run-task for auto-sync.
+# Edit TEMPLATE_REPO to match your local template repo path.
+TEMPLATE_REPO=../claude-code-harness-template
+HEOF
+
+# Copy harness-version stamp if present in template
+if [ -f "$TEMPLATE_DIR/.claude/.harness-version" ]; then
+  cp "$TEMPLATE_DIR/.claude/.harness-version" "$TARGET_DIR/.claude/.harness-version"
+fi
+
 # Copy PlaceholderGuide (AI reads this during init session)
 if [ -f "$TEMPLATE_DIR/PlaceholderGuide.md" ]; then
   cp "$TEMPLATE_DIR/PlaceholderGuide.md" "$TARGET_DIR/PlaceholderGuide.md"

@@ -78,31 +78,84 @@ ln -sfn "$LOG_DIR" "/tmp/${PROJECT_NAME}-run/latest"
 export EPIC_LOG_DIR="$LOG_DIR"
 
 # ============================================================
-# Harness version staleness check
-# Warns if .claude/.harness-version is missing or older than 7 days.
+# Harness version check + auto-sync from template repo
+# Compares local .harness-version against template repo HEAD.
+# If outdated, pulls latest and rsyncs into this project.
 # ============================================================
 check_harness_version() {
   local vfile="$PROJECT_DIR/.claude/.harness-version"
+  local origin_file="$PROJECT_DIR/.claude/.harness-origin"
+
   if [ ! -f "$vfile" ]; then
-    echo -e "${YELLOW}⚠ .claude/.harness-version not found — run build-template.sh from harness-forge to stamp the version${NC}" >&2
+    echo -e "${YELLOW}⚠ .claude/.harness-version not found — run setup.sh or build-template.sh first${NC}" >&2
     return 0
   fi
+
   # shellcheck disable=SC1090
   source "$vfile"
   echo -e "${CYAN}  Harness: v${HARNESS_VERSION:-?} (forge ${FORGE_COMMIT:-?}, built ${BUILD_TIMESTAMP:-?})${NC}" >&2
 
-  # Staleness: warn if BUILD_TIMESTAMP is older than 7 days
-  if [ -n "${BUILD_TIMESTAMP:-}" ]; then
-    local build_epoch now_epoch age_days
-    build_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$BUILD_TIMESTAMP" +%s 2>/dev/null || date -d "$BUILD_TIMESTAMP" +%s 2>/dev/null || echo 0)
-    now_epoch=$(date +%s)
-    if [ "$build_epoch" -gt 0 ]; then
-      age_days=$(( (now_epoch - build_epoch) / 86400 ))
-      if [ "$age_days" -ge 7 ]; then
-        echo -e "${YELLOW}⚠ Harness template is ${age_days} days old — consider running build-template.sh to pick up forge improvements${NC}" >&2
-      fi
-    fi
+  # Need .harness-origin to know where the template repo is
+  if [ ! -f "$origin_file" ]; then
+    echo -e "${YELLOW}⚠ .claude/.harness-origin not found — cannot auto-update. Create it with: echo 'TEMPLATE_REPO=../claude-code-harness-template' > .claude/.harness-origin${NC}" >&2
+    return 0
   fi
+
+  # shellcheck disable=SC1090
+  source "$origin_file"
+  local tmpl_repo="${TEMPLATE_REPO:-}"
+
+  # Resolve relative path from PROJECT_DIR
+  if [ -n "$tmpl_repo" ] && [[ "$tmpl_repo" != /* ]]; then
+    tmpl_repo="$PROJECT_DIR/$tmpl_repo"
+  fi
+
+  if [ -z "$tmpl_repo" ] || [ ! -d "$tmpl_repo/.git" ]; then
+    echo -e "${YELLOW}⚠ Template repo not found at: ${tmpl_repo:-<empty>}${NC}" >&2
+    return 0
+  fi
+
+  # Fetch latest from template repo remote
+  if ! git -C "$tmpl_repo" fetch --quiet 2>/dev/null; then
+    echo -e "${YELLOW}⚠ Could not fetch template repo updates (offline?)${NC}" >&2
+    return 0
+  fi
+
+  local local_commit="${FORGE_COMMIT:-}"
+  local remote_head
+  remote_head=$(git -C "$tmpl_repo" rev-parse --short origin/main 2>/dev/null || echo "")
+
+  if [ -z "$remote_head" ]; then
+    echo -e "${YELLOW}⚠ Could not read template repo HEAD${NC}" >&2
+    return 0
+  fi
+
+  if [ "$local_commit" = "$remote_head" ]; then
+    echo -e "${GREEN}  ✓ Harness up-to-date (${local_commit})${NC}" >&2
+    return 0
+  fi
+
+  # New version available — auto-sync
+  echo -e "${CYAN}  ↑ New harness version available: ${local_commit} → ${remote_head}${NC}" >&2
+  echo -e "${CYAN}  Syncing from template repo...${NC}" >&2
+
+  # Pull latest in template repo
+  git -C "$tmpl_repo" pull --quiet 2>/dev/null || true
+
+  # Rsync template into project (preserve .git, harvest, outputs, handoff, .env)
+  rsync -a --update \
+    --exclude='.git' --exclude='.git/' \
+    --exclude='harvest/' --exclude='outputs/' \
+    --exclude='handoff/' --exclude='.env' \
+    --exclude='.env.*' --exclude='node_modules/' \
+    --exclude='.DS_Store' \
+    "$tmpl_repo/" "$PROJECT_DIR/"
+
+  # Make scripts executable
+  find "$PROJECT_DIR/scripts" -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
+  find "$PROJECT_DIR/.claude/hooks" -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
+
+  echo -e "${GREEN}  ✓ Harness synced (${local_commit} → ${remote_head})${NC}" >&2
 }
 check_harness_version
 
