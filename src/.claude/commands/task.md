@@ -1,3 +1,8 @@
+---
+model: sonnet
+description: Run 3-Role automation (Plan → Develop → Review) for a single task
+---
+
 Run the 3-Role automation script for a single task.
 This executes Plan → Develop → Review in separate sessions automatically.
 

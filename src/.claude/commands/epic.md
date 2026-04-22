@@ -1,3 +1,8 @@
+---
+model: sonnet
+description: Run Epic automation — decompose into Slices and execute each
+---
+
 Run the Epic automation script.
 This decomposes an Epic into Slices, then runs Plan → Develop → Review for each Slice automatically.
 

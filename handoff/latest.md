@@ -1,3 +1,43 @@
+# Handoff — 2026-04-22 (Harvest Run 7: 세션 하이진 + 모델 frontmatter)
+
+## What Changed (2026-04-22)
+YouTube 영상 분석(1차+2차 요약)을 manual 입력으로 harvest. 12 후보 중 7 concreteness 통과, 상위 2 적용.
+
+### P1 — 세션 하이진 4-bullet (gotchas.md)
+- `/clear` 주제 전환 시 / ESC+`/rewind` 오류 복원 / Plan Mode `Shift+Tab` 복잡 작업 / `/context`+`/cost` 수치 확인
+- Fitness 6/10, risk low, Gate 2 PASS
+
+### P2-v2 — 모델 선택 frontmatter (하드 변환, v1→v2 격상)
+- `src/.claude/commands/plan.md` + `review.md` → `model: opus`
+- `src/.claude/commands/develop.md` + `task.md` + `epic.md` → `model: sonnet`
+- `gotchas.md`에 원칙 1줄 보강
+- Fitness **9/10** (automation+friction+hard+token 각 2), risk low, Gate 2 PASS
+- 격상 계기: 1차 요약 재검증 중 commands/*.md가 frontmatter 전무한 것 발견 → 단순 gotchas 불릿보다 frontmatter 하드 변환이 훨씬 강함
+- 사용자 2차 판단: review=opus, task/epic=sonnet 확정. `harvest.md`는 스코프 외 유지.
+
+### Rejected / Pending
+- Rejected: #2 MCP unmount, #3 single-message bundle, #8 usage dashboard, #9 infinite loop watch, #12 60% compact (70% 기존), #16 peak time, #17 CLAUDE.md 자가학습
+- Dedup: #10 CLAUDE.md 200-line guard (Run 6), #11 file references (gotchas 기존)
+- Pending: #7 Status line config (중간 리스크, 별도 세션)
+
+### 검증 결과
+- Gate 2: harness-report quick **57/100 → 57/100** (회귀 없음)
+- build-template.sh: 83 files synced to target repo
+- CLAUDE.md: 104 lines (guard 통과)
+
+### Current State (2026-04-22)
+- Baseline: **57/100** (변동 없음 — 변경이 commands frontmatter + gotchas 라인 추가라 quick-mode 채점 메트릭에 반영 안 됨)
+- this repo: 커밋 전 상태 (P1 + P2-v2 변경 스테이지 대기)
+- target repo: build-template 동기화 완료, 커밋은 별도
+
+## What's Next (2026-04-22)
+- [ ] 본 repo 커밋: `chore: harvest — Run 7 (P1 session hygiene + P2-v2 model frontmatter)`
+- [ ] target repo에서 template 업데이트 커밋
+- [ ] Pending #7 Status line config 별도 세션에서 REVIEW
+- [ ] (이전부터) harness-report 가중치 재설계 — rules 5/20 등 헤드룸 47점
+
+---
+
 # Handoff — 2026-04-12 (Epics Postmortem: 12 issues fixed)
 
 ## What Changed (2026-04-12)

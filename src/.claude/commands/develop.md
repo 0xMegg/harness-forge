@@ -1,3 +1,8 @@
+---
+model: sonnet
+description: Developer — implementation, iteration
+---
+
 Follow the Developer role defined in templates/role-developer.md exactly.
 
 ## Task

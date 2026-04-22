@@ -1,3 +1,8 @@
+---
+model: opus
+description: Reviewer — judgment, synthesis, final approval
+---
+
 Follow the Reviewer role defined in templates/role-reviewer.md exactly.
 
 ## Language

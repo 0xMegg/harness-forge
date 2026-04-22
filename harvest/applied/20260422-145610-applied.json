@@ -1,0 +1,50 @@
+[
+  {
+    "id": "manual-video-session-hygiene-p1",
+    "applied_at": "2026-04-22T05:56:10Z",
+    "description": "Claude Code 세션 하이진 4-bullet — gotchas.md에 /clear, ESC+/rewind, Plan Mode(Shift+Tab), /context+/cost 모니터링 규칙 추가",
+    "target_files": ["src/.claude/rules/gotchas.md"],
+    "change_type": "rule",
+    "risk": "low",
+    "fitness_score": 6,
+    "fitness_axes": {
+      "automation": 1,
+      "friction": 2,
+      "hard_conversion": 0,
+      "token_efficiency": 2,
+      "measurability": 1
+    },
+    "gate2_result": "pass (57→57)",
+    "source": "manual — YouTube 분석 (Claude Code: The Real Reason You Hit Your Limit Quickly) + 공식 문서 교차검증"
+  },
+  {
+    "id": "manual-video-model-selection-p2-v2",
+    "applied_at": "2026-04-22T05:56:10Z",
+    "description": "Opus/Sonnet 모델 분리를 command frontmatter에 하드 변환 — /plan + /review → Opus, /develop + /task + /epic → Sonnet. gotchas.md에 원칙 1줄 보강. v1(gotchas 불릿만, 6/10)에서 v2(frontmatter 자동화, 9/10)로 격상",
+    "target_files": [
+      "src/.claude/commands/plan.md",
+      "src/.claude/commands/review.md",
+      "src/.claude/commands/develop.md",
+      "src/.claude/commands/task.md",
+      "src/.claude/commands/epic.md",
+      "src/.claude/rules/gotchas.md"
+    ],
+    "change_type": "scaffold-rule",
+    "risk": "low",
+    "fitness_score": 9,
+    "fitness_axes": {
+      "automation": 2,
+      "friction": 2,
+      "hard_conversion": 2,
+      "token_efficiency": 2,
+      "measurability": 1
+    },
+    "gate2_result": "pass (57→57)",
+    "source": "manual — YouTube 분석 1차 요약 재검증 과정에서 격상",
+    "user_decisions": {
+      "review_model": "opus",
+      "task_epic_model": "sonnet",
+      "harvest_md": "untouched (out of scope)"
+    }
+  }
+]

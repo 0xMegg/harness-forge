@@ -1,3 +1,8 @@
+---
+model: opus
+description: Planner — design, decomposition, deep reasoning
+---
+
 Follow the Planner role defined in templates/role-planner.md exactly.
 
 ## Task
