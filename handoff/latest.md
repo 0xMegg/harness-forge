@@ -1,3 +1,31 @@
+# Handoff — 2026-04-23 PM-4 (kody Report 2 P0-5 누락 뒤처리)
+
+## What Changed (PM-4)
+PM-2 종결 선언에서 kody Report 2의 P0가 "× 4" 로 닫혔으나 피드백 문서에는 P0 항목이 5개였음. 누락된 **P0-5 (E9: color var 선언 순서 버그)** 를 확정 재현 후 fix.
+
+### 재현
+- `bash -euo pipefail src/scripts/run-task.sh --dry-run "Smoke"` → `line 95: YELLOW: unbound variable`, exit 1
+- `src/scripts/run-epic.sh` 도 동일 (line 98)
+- 원인: `check_harness_version()` 가 파일 상단(run-task L88, run-epic L92)에서 정의·호출되면서 `${CYAN}/${YELLOW}/${GREEN}` 참조. 색상 변수 정의 블록은 파일 중간(run-task L365~, run-epic L398~)에 있어 `set -u` 조합에서 unbound
+
+### Src 편집 (2 파일)
+- `src/scripts/run-task.sh` — 색상 변수 블록을 `set -euo pipefail` 바로 아래로 hoist. 기존 중간 위치(L363~)의 중복 선언 블록은 제거. "Do not move below function definitions" 주석 추가
+- `src/scripts/run-epic.sh` — 동일 조치 (bash 버전 체크 블록 앞으로 hoist)
+
+### 검증
+- `bash -n` 양쪽 통과
+- `/tmp/p05-test` 빈 repo에서 `bash -euo pipefail ... --dry-run` → unbound error 사라지고 Phase 1/3 PLAN 까지 정상 진입 확인
+- `shellcheck src/scripts/run-task.sh src/scripts/run-epic.sh` — 새 경고 0건 (기존 SC2004/SC2129만 잔존)
+
+### Closure 정정
+기존 PM-2 표기 "Report 2 P0 × 4 ✅" → **P0 × 5 ✅** 로 정정. 이로써 kody Report 2의 모든 P0 항목이 forge src 에 반영됨. Build/template sync 는 이 커밋 뒤 수행.
+
+## Current State (PM-4 종료 시점)
+- **forge HEAD**: PM-3 커밋(`0068adc`) + PM-4 편집 미커밋 — `src/scripts/run-task.sh`, `src/scripts/run-epic.sh`, 이 handoff
+- **template HEAD**: `224e892` (변경 없음) → forge 커밋 후 template sync 예정
+
+---
+
 # Handoff — 2026-04-23 PM-3 (Protected-branch sync 가이드 보강)
 
 ## What Changed (PM-3)

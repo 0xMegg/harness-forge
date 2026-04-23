@@ -15,6 +15,18 @@
 set -euo pipefail
 
 # ============================================================
+# Colors — defined before any function that references them so
+# check_harness_version() below does not hit `unbound variable`
+# under `set -u`. Do not move below function definitions.
+# ============================================================
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# ============================================================
 # Configuration — adjust for your project
 # ============================================================
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
@@ -359,14 +371,6 @@ log_task_entry() {
 
   echo "[log] entry appended: $log_file"
 }
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'
 
 # ============================================================
 # Helper functions

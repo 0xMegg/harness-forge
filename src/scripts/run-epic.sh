@@ -17,6 +17,19 @@
 
 set -euo pipefail
 
+# ============================================================
+# Colors — defined before any function that references them so
+# check_harness_version() and preflight_git_remote() below do
+# not hit `unbound variable` under `set -u`. Do not move below
+# function definitions.
+# ============================================================
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
 # Bash 3.2+ required (macOS default). Reject older versions early.
 if (( BASH_VERSINFO[0] < 3 )) || { (( BASH_VERSINFO[0] == 3 )) && (( BASH_VERSINFO[1] < 2 )); }; then
   echo "ERROR: run-epic.sh requires bash 3.2+. Current: $BASH_VERSION" >&2
@@ -392,14 +405,6 @@ setup_epic_branch
 while IFS= read -r _kr; do
   EPIC_KNOWN_REPOS+=("$_kr")
 done < <(discover_git_repos 2>/dev/null)
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'
 
 log_phase() {
   echo ""
