@@ -34,6 +34,7 @@ skills/SKILL-TEST-CHECKLIST.md
 
 # Harness-provided scripts (enumerate explicitly so project-local
 # scripts in the same dir stay untouched)
+scripts/acceptance-check.sh
 scripts/audit-coherence.sh
 scripts/diagnose.sh
 scripts/epic-monitor.sh
