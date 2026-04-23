@@ -66,10 +66,19 @@ Opus 4.6 can handle this scale consistently within a single session.
 - Each parallel slice must have independent tests
 - When in doubt, put slices in separate Stages (sequential is always safe)
 
+## Terminal Audit / Verification Slice
+If the final slice is verification, audit, or QA (rather than shipping new code), its **Done-when** MUST bake in the Epic gate — not just "report produced":
+
+- Required form: `outputs/reviews/epic-<N>-audit.md` contains `Verdict: PASS` **and** `Blocker=0` (or the equivalent machine-checkable fields your audit template uses).
+- Reviewer rule: if the audit report yields `Verdict: ITERATE|FAIL` or `Blocker>0`, the slice verdict MUST be REVISE — even when the report itself is well-written. Otherwise the Epic wrapper marks "all slices approved → success" while unresolved blockers remain.
+
+Without this, a slice can approve for producing a good report whose content says FAIL, and the Epic finalizes green with real acceptance misses.
+
 ## Epic Acceptance Criteria
 - [ ] All slices completed and reviewed
 - [ ] Lint/analyze passes
 - [ ] Tests pass
+- [ ] Terminal audit slice (if present) reports `Verdict: PASS` and `Blocker=0`
 - [ ] [end-to-end user flow description]
 
 ## Open Questions

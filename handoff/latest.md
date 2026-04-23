@@ -1,3 +1,67 @@
+# Handoff — 2026-04-23 (Propagation P1 완료 + Kody Epic 7 P0 완료)
+
+## What Changed (2026-04-23)
+두 리포트를 한 세션에서 처리: **propagation incident P1 3건** + **kody-workspace Epic 7 P0 3건** (P0-3는 이미 src에 반영되어 있어 제외). `src/`만 편집, 빌드·전파는 다음 세션.
+
+### Propagation P1 (Group B — 재발 방지 기반, 먼저 진행)
+- **B1 신규 `src/.harness-manifest`** — managed/seed/ignore 3-섹션 선언 파일. 최초 전파 메커니즘 선언화. first-match 순서(managed > seed > ignore), 패턴 `dir/**` 재귀 + 정확매치 + bash 글롭.
+- **B2 신규 `src/scripts/upgrade-harness.sh`** — manifest-based 업그레이드 도구. 기본 dry-run, `--apply` 명시 필요. managed는 `cp -p` 덮어쓰기(`--update` 안 씀), seed는 dest 존재 시 skip, 분류 실패 파일은 coverage gap으로 경고.
+- **B3 auto-sync 제거** — `run-epic.sh:check_harness_version()` + `run-task.sh:check_harness_version()`의 rsync 블록 제거. 버전 mismatch 시 경고 + `upgrade-harness.sh --apply` 권고만 출력 (자동 수행 없음).
+
+### Kody P0 (Group A — Epic 7 결함)
+- **A1 `run-epic.sh` origin preflight** — 신규 `preflight_git_remote()`, setup_epic_branch 진입 시 호출. 멀티/싱글 repo 모두 remote 미설정이면 hard-exit. 우회: `HARVEST_ALLOW_NO_REMOTE=1`. (kody E5 — origin 없어도 Epic 정상 종결되던 버그)
+- **A2 `role-planner.md` Pre-Start Checklist 섹션** — Workflow 직후 삽입. 새 prop/export 도입 시 `grep -rl` 로 call-site 전수 → 같은/후속 Stage 포함 명시. Literal → token 리팩터 시 grep 대상 패턴 명시. (kody E1, E2 — prop만 추가되고 call-site 0건인 dead code)
+- **A3 `epic-plan.md` Terminal Audit Slice 섹션** — Acceptance Criteria 앞 신설. 마지막 audit/verification slice의 Done-when에 `Verdict: PASS` + `Blocker=0` 기계검증 가능 형식 필수. Reviewer 규칙: audit 본문이 ITERATE/FAIL이면 slice REVISE. Acceptance Criteria에 체크박스 1건 추가. (kody E3 — 14/14 APPROVE인데 audit 본문은 Blocker=2)
+- **Kody P0-3 (zsh monitor 결함)**: `.claude/commands/epic.md`는 이미 `bash ./scripts/epic-monitor.sh` 래핑, `epic-monitor.sh`는 `[ -d "$d" ] || continue` 안전 패턴 — Run 6에서 수정 완료. 포지 변경 0, kody 다운스트림이 다음 upgrade-harness로 받으면 해결.
+
+### 검증 결과
+- `bash -n` 세 스크립트 전부 통과. `shellcheck upgrade-harness.sh` clean (SC2295 1건 수정), run-epic.sh는 기존 style warning 2건만 잔존(내 변경과 무관).
+- **Realistic smoke test** (pre-existing CLAUDE.md/.gitignore/context 있는 `/tmp` 가상 프로젝트):
+  - dry-run: 0 change, seed 3건 skip(CLAUDE.md/.gitignore/about-me.md), managed 55 / seed 20 install 예고
+  - --apply: CLAUDE.md="My Flutter Project" 보존, .gitignore 9줄 보존, context/about-me.md 사용자 내용 그대로
+  - 재실행 dry-run: 0 overwrite, 0 install, 55 unchanged, 23 seed skip (idempotent)
+- 사건 시나리오(custom CLAUDE.md/.gitignore 덮어쓰기) **재현 안 됨** = fix 검증.
+
+### Current State (2026-04-23)
+- forge working tree: 4 modified + 2 new files (src/ 한정), handoff 1 수정
+  - M: `src/scripts/run-epic.sh`, `src/scripts/run-task.sh`, `src/templates/role-planner.md`, `src/templates/epic-plan.md`
+  - ??: `src/.harness-manifest`, `src/scripts/upgrade-harness.sh`
+- template repo: 변경 없음
+- 4개 프로젝트: pre-session 상태 그대로
+- **build-template.sh 미실행** (세션 내 mtime 오염 방지)
+
+## What's Next (2026-04-24 이후)
+
+### 즉시 다음 세션
+- [ ] 이번 세션 커밋 (아직 미커밋) — 제안 메시지: `feat: upgrade-harness tool + kody epic-7 P0 fixes`
+- [ ] `bash scripts/build-template.sh` → template repo 동기화 커밋
+- [ ] Kody 다운스트림에서 `bash scripts/upgrade-harness.sh` 먼저 dry-run → 결과 리뷰 → `--apply`
+  - 그러면 kody가 P0-3(zsh monitor) + P0-1/2 + 새 upgrade tool 수령
+
+### P2 (완성도) — 별도 세션 권장
+- [ ] `migrate-harness-stamp.sh` 스코프 축소 (있다면) — 이름대로 스탬프만, rsync 로직 금지
+- [ ] Drift check 스탬프 인용부호 — `SCRIPTS_FILES="..."` (없으면 `source` 파싱 실패)
+- [ ] `scripts/acceptance-check.sh` — epic-plan.md audit gate의 기계 검증 (kody P2-1)
+
+### P3 (운영)
+- [ ] divebase/char-maker/honbabseoul + 기타 기존 프로젝트 순차 재migrate — 각 `--dry-run` 리뷰 후 `--apply`. divebase 먼저(edge case).
+- [ ] divebase `.claude/.harness-origin.disabled` → `.harness-origin` 원복 (upgrade-harness 안정화 확인 후)
+
+### Kody P1/P2 이월
+- [ ] Developer template: Follow-up call-sites 섹션 필수화 (role-developer.md)
+- [ ] Reviewer template: dead-code 가드 — 새 export가 call-site 0이면 REVISE 규칙 (role-reviewer.md)
+- [ ] Developer/Reviewer: dev server 등 장기 프로세스 kill 필수 (process leak 방지)
+- [ ] Reviewer: T+ 타임스탬프 review 로그 컨벤션 (outlier 진단용)
+
+## 프로세스 교훈 (리팩터 작업 중에도 적용)
+- Template 빌드 ↔ 프로젝트 전파를 **같은 세션에서 연속 수행 금지** (mtime 오염)
+- `rsync --itemize-changes` 출력을 파일별로 읽고 "이거 덮어써도 되나?" 각각 판단
+- 대량 작업은 **1개 → diff 확인 → 다음** (for 루프 일괄 실행 금지)
+- 모호한 동사(`migrate`, `sync`) 받으면 **스코프 먼저 확정**
+- B-first(전파 경로) → A(템플릿 내용) 순서가 구조적으로 맞음 — A 개선이 쌓여도 B가 broken이면 다운스트림 도달 불가
+
+---
+
 # Handoff — 2026-04-22 (Harvest Run 7: 세션 하이진 + 모델 frontmatter)
 
 ## What Changed (2026-04-22)

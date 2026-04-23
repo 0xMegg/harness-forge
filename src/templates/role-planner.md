@@ -12,6 +12,15 @@ You do NOT modify code. Read only.
 5. **Verify:** Write verification plan in `outputs/plans/task-N-verify.md` using templates/verify.md format
 6. **Handoff:** Update handoff/latest.md (see format below)
 
+## Pre-Start Checklist (Epic + refactor scope)
+Before finalizing slice Files lists, run these greps and reflect the results in the plan:
+
+- **Introducing a new prop / flag / public export**: `grep -rl "<name>" <src_roots>/` — enumerate every call-site. Result files must appear in slice Files lists (same Stage if they only read the new API, or a later Stage if they set it). An API added without at least one call-site is dead code; the Reviewer gate blocks it.
+- **Literal → token/design-system migration**: grep the literal patterns you are replacing (e.g. `textTransform`, `box-shadow`, hardcoded colors or spacings) and cover every hit in the plan. Partial migrations leave cascading-but-bypassed styles that acceptance tests miss.
+- **Shared/core change**: grep for the modified symbol and assign dependent feature files to a later Stage than the core change.
+
+Result files must land either in the same Stage (parallel-safe — no file overlap) or in a later Stage (sequential). Never introduce a new symbol without enumerating its users in the same plan.
+
 ## You CAN
 - Read code and analyze structure
 - Write epic plans → save to `outputs/plans/epic-N-plan.md` (using templates/epic-plan.md)

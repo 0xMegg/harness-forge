@@ -78,9 +78,16 @@ ln -sfn "$LOG_DIR" "/tmp/${PROJECT_NAME}-run/latest"
 export EPIC_LOG_DIR="$LOG_DIR"
 
 # ============================================================
-# Harness version check + auto-sync from template repo
-# Compares local .harness-version against template repo HEAD.
-# If outdated, pulls latest and rsyncs into this project.
+# Harness version check — warning-only (no auto-sync).
+# Compares local .harness-version stamp to template repo HEAD and prints
+# a WARNING with upgrade instructions if outdated. Does NOT modify files.
+#
+# Previously this block ran `rsync -a --update` from the template into the
+# project on every invocation. The --update flag was trusted as a
+# "project-owned file protection" guard, but it is purely an mtime
+# comparison — `build-template.sh` re-stamps template mtimes on every
+# build, breaking the guard and overwriting project-owned files. Use
+# scripts/upgrade-harness.sh for manifest-based updates instead.
 # ============================================================
 check_harness_version() {
   local vfile="$PROJECT_DIR/.claude/.harness-version"
@@ -107,7 +114,7 @@ BVEOF
     echo -e "${YELLOW}⚠ .claude/.harness-origin not found — creating with default path${NC}" >&2
     mkdir -p "$(dirname "$origin_file")"
     cat > "$origin_file" << 'BOEOF'
-# Harness template origin — used by run-epic/run-task for auto-sync.
+# Harness template origin — used by scripts/upgrade-harness.sh.
 # Edit TEMPLATE_REPO to match your local template repo path.
 TEMPLATE_REPO=../claude-code-harness-template
 BOEOF
@@ -124,13 +131,13 @@ BOEOF
   fi
 
   if [ -z "$tmpl_repo" ] || [ ! -d "$tmpl_repo/.git" ]; then
-    echo -e "${YELLOW}⚠ Template repo not found at: ${tmpl_repo:-<empty>}${NC}" >&2
+    echo -e "${YELLOW}⚠ Template repo not found at: ${tmpl_repo:-<empty>} — version check skipped${NC}" >&2
     return 0
   fi
 
   # Fetch latest from template repo remote
   if ! git -C "$tmpl_repo" fetch --quiet 2>/dev/null; then
-    echo -e "${YELLOW}⚠ Could not fetch template repo updates (offline?)${NC}" >&2
+    echo -e "${YELLOW}⚠ Could not fetch template repo updates (offline?) — version check skipped${NC}" >&2
     return 0
   fi
 
@@ -139,7 +146,7 @@ BOEOF
   remote_head=$(git -C "$tmpl_repo" rev-parse --short origin/main 2>/dev/null || echo "")
 
   if [ -z "$remote_head" ]; then
-    echo -e "${YELLOW}⚠ Could not read template repo HEAD${NC}" >&2
+    echo -e "${YELLOW}⚠ Could not read template repo HEAD — version check skipped${NC}" >&2
     return 0
   fi
 
@@ -148,27 +155,10 @@ BOEOF
     return 0
   fi
 
-  # New version available — auto-sync
-  echo -e "${CYAN}  ↑ New harness version available: ${local_commit} → ${remote_head}${NC}" >&2
-  echo -e "${CYAN}  Syncing from template repo...${NC}" >&2
-
-  # Pull latest in template repo
-  git -C "$tmpl_repo" pull --quiet 2>/dev/null || true
-
-  # Rsync template into project (preserve .git, harvest, outputs, handoff, .env)
-  rsync -a --update \
-    --exclude='.git' --exclude='.git/' \
-    --exclude='harvest/' --exclude='outputs/' \
-    --exclude='handoff/' --exclude='.env' \
-    --exclude='.env.*' --exclude='node_modules/' \
-    --exclude='.DS_Store' \
-    "$tmpl_repo/" "$PROJECT_DIR/"
-
-  # Make scripts executable
-  find "$PROJECT_DIR/scripts" -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
-  find "$PROJECT_DIR/.claude/hooks" -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
-
-  echo -e "${GREEN}  ✓ Harness synced (${local_commit} → ${remote_head})${NC}" >&2
+  # Out of date — warn only. Do NOT auto-sync (see function header comment).
+  echo -e "${YELLOW}  ⚠ Harness out of date: local ${local_commit} → template ${remote_head}${NC}" >&2
+  echo -e "${YELLOW}    Review changes and update with:   bash scripts/upgrade-harness.sh --apply${NC}" >&2
+  echo -e "${YELLOW}    (preview without changes:         bash scripts/upgrade-harness.sh)${NC}" >&2
 }
 check_harness_version
 
@@ -234,9 +224,47 @@ EPIC_ORIGINAL_BRANCH=""
 EPIC_ORIGINAL_BRANCHES=()   # multi-repo: "repo_path|original_branch" entries
 EPIC_KNOWN_REPOS=()         # repos known at setup_epic_branch time
 
+# ============================================================
+# Preflight: verify a git remote exists so end-of-run push operations
+# don't silently fail and drop the epic's commits locally. Default:
+# hard-exit if any repo has no remote. Escape hatch:
+# `HARVEST_ALLOW_NO_REMOTE=1` for deliberately local-only runs.
+# ============================================================
+preflight_git_remote() {
+  if [ "$DRY_RUN" = true ]; then return 0; fi
+  if [ "${HARVEST_ALLOW_NO_REMOTE:-0}" = "1" ]; then return 0; fi
+
+  local missing=()
+  local repo_dir
+
+  if $IS_MULTI_REPO; then
+    while IFS= read -r repo_dir; do
+      if ! (cd "$repo_dir" && git remote 2>/dev/null | grep -q .); then
+        missing+=("$(basename "$repo_dir")")
+      fi
+    done < <(discover_git_repos)
+  else
+    if git -C "$PROJECT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      if ! git -C "$PROJECT_DIR" remote 2>/dev/null | grep -q .; then
+        missing+=("$(basename "$PROJECT_DIR")")
+      fi
+    fi
+  fi
+
+  if [ ${#missing[@]} -gt 0 ]; then
+    echo -e "${RED}✗ No git remote configured in: ${missing[*]}${NC}" >&2
+    echo -e "${YELLOW}  Epic commits would stay local only — push operations silently drop them.${NC}" >&2
+    echo -e "${YELLOW}  Add one:     cd <repo> && git remote add origin <URL>${NC}" >&2
+    echo -e "${YELLOW}  Or bypass:   HARVEST_ALLOW_NO_REMOTE=1 bash scripts/run-epic.sh ...${NC}" >&2
+    exit 1
+  fi
+}
+
 setup_epic_branch() {
   if [ "$DRY_RUN" = true ]; then return 0; fi
   if [ "${HARVEST_ALLOW_MAIN:-0}" = "1" ]; then return 0; fi
+
+  preflight_git_remote
 
   if $IS_MULTI_REPO; then
     # --- Multi-repo: create epic branch in each sub-repo ---

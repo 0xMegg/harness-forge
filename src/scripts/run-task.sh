@@ -80,8 +80,10 @@ fi
 mkdir -p "$LOG_DIR"
 
 # ============================================================
-# Harness version check + auto-sync from template repo
-# Skipped when launched by run-epic.sh (EPIC_NAME is set) to avoid duplicate sync.
+# Harness version check — warning-only (no auto-sync).
+# Skipped when launched by run-epic.sh (EPIC_NAME is set) to avoid a
+# duplicate warning. See scripts/run-epic.sh for rationale on why the
+# prior rsync-based auto-sync was removed.
 # ============================================================
 check_harness_version() {
   if [ -n "${EPIC_NAME:-}" ]; then return 0; fi  # epic already checked
@@ -109,7 +111,7 @@ BVEOF
     echo -e "${YELLOW}⚠ .claude/.harness-origin not found — creating with default path${NC}" >&2
     mkdir -p "$(dirname "$origin_file")"
     cat > "$origin_file" << 'BOEOF'
-# Harness template origin — used by run-epic/run-task for auto-sync.
+# Harness template origin — used by scripts/upgrade-harness.sh.
 # Edit TEMPLATE_REPO to match your local template repo path.
 TEMPLATE_REPO=../claude-code-harness-template
 BOEOF
@@ -124,12 +126,12 @@ BOEOF
   fi
 
   if [ -z "$tmpl_repo" ] || [ ! -d "$tmpl_repo/.git" ]; then
-    echo -e "${YELLOW}⚠ Template repo not found at: ${tmpl_repo:-<empty>}${NC}" >&2
+    echo -e "${YELLOW}⚠ Template repo not found at: ${tmpl_repo:-<empty>} — version check skipped${NC}" >&2
     return 0
   fi
 
   if ! git -C "$tmpl_repo" fetch --quiet 2>/dev/null; then
-    echo -e "${YELLOW}⚠ Could not fetch template repo updates (offline?)${NC}" >&2
+    echo -e "${YELLOW}⚠ Could not fetch template repo updates (offline?) — version check skipped${NC}" >&2
     return 0
   fi
 
@@ -146,23 +148,9 @@ BOEOF
     return 0
   fi
 
-  echo -e "${CYAN}  ↑ New harness version: ${local_commit} → ${remote_head}${NC}" >&2
-  echo -e "${CYAN}  Syncing from template repo...${NC}" >&2
-
-  git -C "$tmpl_repo" pull --quiet 2>/dev/null || true
-
-  rsync -a --update \
-    --exclude='.git' --exclude='.git/' \
-    --exclude='harvest/' --exclude='outputs/' \
-    --exclude='handoff/' --exclude='.env' \
-    --exclude='.env.*' --exclude='node_modules/' \
-    --exclude='.DS_Store' \
-    "$tmpl_repo/" "$PROJECT_DIR/"
-
-  find "$PROJECT_DIR/scripts" -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
-  find "$PROJECT_DIR/.claude/hooks" -name '*.sh' -exec chmod +x {} \; 2>/dev/null || true
-
-  echo -e "${GREEN}  ✓ Harness synced (${local_commit} → ${remote_head})${NC}" >&2
+  # Out of date — warn only. Do NOT auto-sync.
+  echo -e "${YELLOW}  ⚠ Harness out of date: local ${local_commit} → template ${remote_head}${NC}" >&2
+  echo -e "${YELLOW}    Review changes and update with:   bash scripts/upgrade-harness.sh --apply${NC}" >&2
 }
 check_harness_version
 
