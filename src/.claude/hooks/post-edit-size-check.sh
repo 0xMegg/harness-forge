@@ -30,7 +30,7 @@ limit=0
 case "$file_path" in
   */context/decision-log.md) limit=0 ;;   # excluded by policy
   */CLAUDE.md)               limit=200 ;;
-  */.claude/rules/*.md)      limit=50 ;;
+  */.claude/rules/*/*.md)    limit=50 ;;  # base/ and local/ subdirs
   */context/*.md)            limit=150 ;;
 esac
 
