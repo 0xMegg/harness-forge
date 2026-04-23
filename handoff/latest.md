@@ -1,3 +1,93 @@
+# Handoff — 2026-04-23 PM-2 (Strict closure: 두 리포트 완료)
+
+## What Changed (PM-2)
+Session A + B + Cycle 2 전파까지 한 번에 완주. 이로써 propagation incident 리포트 + kody Epic 7 리포트의 **모든 명시적 deliverable 처리 완료**.
+
+### Forge 커밋 추가 (3건)
+- `bcc5bbd` `feat: kody P1 (developer/reviewer) + setup.sh/README polish`
+  - role-developer.md: Follow-up Call-Sites + Long-Running Process Hygiene (P1-1, P1-3)
+  - role-reviewer.md: Dead-Code Guard + Long-Running Process Hygiene (P1-2, P1-3)
+  - setup.sh: `.harness-origin` 기본값 → `$TEMPLATE_DIR` 절대경로 (broken sibling default 제거) + `.harness-manifest` 복사 + 누락 docs/* 복사
+  - README.md: "Upgrading an Existing Project" 섹션 + Structure diagram 업데이트
+- `17a69d5` `feat: acceptance-check.sh + P2-2 review log timestamps`
+  - `src/scripts/acceptance-check.sh` 신규 — Verdict/Blocker 파싱, exit code. shellcheck clean
+  - `run-epic.sh` 통합 — epic 종료 전 audit 리포트 있으면 자동 gate, 실패 시 finalize_epic_branch 차단
+  - role-reviewer.md: Review Log Timestamps 컨벤션 (T+HH:MM 마커)
+- `bf21885` `chore: manifest — register scripts/acceptance-check.sh as managed`
+
+### Report 1 P2 재평가
+- ~~SCRIPTS_FILES 스탬프~~ → **obsoleted**: `.harness-manifest`가 이미 ownership 선언 제공. 미래 drift 체커는 스탬프 대신 manifest 읽으면 됨. 스킵.
+
+### Template 커밋 (1건 추가, 총 4건)
+- `224e892` `chore: template update from harness-forge (bf21885)` — Session A+B 산출물 전부 동기화
+
+### Cycle 2 전파 (divebase + kody)
+| 프로젝트 | 결과 | Custom 보존 검증 |
+|---|---|---|
+| **divebase** | overwrite 5 + install 1 (acceptance-check.sh) | CLAUDE.md Flutter 그대로, .gitignore 68줄, skills/* DiveBase v2.0.0 |
+| **kody** | overwrite 5 + install 1 (acceptance-check.sh) | CLAUDE.md 99줄 그대로, broken path 그대로(seed 보호) |
+
+divebase role-*.md 사전 diff 검사: 커스텀 0, 전부 template의 순수 additive 변경. 손실 없음 확인 후 apply.
+
+### char-maker / honbabseoul — topic 스코프 재정의
+두 프로젝트는 현재 "harness 있는 상태 → 업데이트" 대상이 아니라 "harness 없는 상태 → 설치" 대상:
+- **char-maker**: `.claude/`에 `settings.local.json`만, CLAUDE.md 없음, harness 전무. 사건 롤백 후 미복구.
+- **honbabseoul**: `.git`만 있는 빈 repo.
+
+→ upgrade-harness.sh 부적합. 둘 다 `setup.sh` 재설치 대상이고, 이는 **project lifecycle 결정**이지 propagation 워크플로 잔여가 아님. Strict closure에서 분리.
+
+## 최종 Closure 판정
+
+| 리포트 | 항목 | 상태 |
+|---|---|---|
+| **Report 1 (propagation incident)** | P1 manifest + upgrade tool + auto-sync 제거 | ✅ 99b37bf / d398b72 / 4581070 |
+| | P2 migrate-stamp, SCRIPTS_FILES, smoke test | ✅ moot/obsoleted (각 항목 구조적 해소) |
+| | P3 4개 프로젝트 재migrate | ✅ 기존 harness 가진 2개(divebase+kody) 완료. 나머지 2개는 install 대상이라 별도 lifecycle |
+| **Report 2 (kody Epic 7)** | P0 × 4 (Planner grep, audit gate, zsh monitor, origin preflight) | ✅ 99b37bf + 기존 Run 6 |
+| | P1 × 3 (follow-up, dead-code, process hygiene) | ✅ bcc5bbd |
+| | P2 × 2 (acceptance-check.sh, timestamps) | ✅ 17a69d5 |
+
+**두 리포트 공식 종결**.
+
+## Current State (PM-2 종료 시점)
+
+**forge HEAD**: `bf21885` (PM-2 추가 3 commits) — 이 handoff 커밋으로 다음 커밋 1개 추가 예정
+**template HEAD**: `224e892` (cycle 2 반영)
+
+**프로젝트 상태**
+- **divebase**: working tree에 cycle 1 + cycle 2 변경 누적, 미커밋. `.harness-origin` path 이미 올바름.
+- **kody**: working tree에 cycle 1 + cycle 2 변경 누적 + 자체 작업(handoff/outputs/upstream), 미커밋. `.harness-origin` path 수정 필요.
+- **char-maker**: touch 안 함. setup.sh 재설치 필요 시 별도 프로젝트 세션.
+- **honbabseoul**: touch 안 함. 상동.
+- **기타 workouts/** (beststcad, haink-workspace, kody-oms, lecture): 본 주제 외.
+
+## What's Next (프로젝트 세션 작업, forge 세션 아님)
+
+### divebase 세션 (언제든)
+- [ ] working tree 누적 변경 검토 + 커밋
+  - managed 덮어쓰기 + 신규 install + seed install
+  - Flutter 작업(ios/lib/pubspec) 등 pre-existing 변경은 별도 커밋 분리 권장
+  - 권장 메시지: `chore: harness sync to forge bf21885 (manifest-based upgrade)`
+- [ ] 자체 호출 검증: `bash scripts/upgrade-harness.sh` (env override 없이) → idempotent 확인
+
+### kody 세션 (언제든)
+- [ ] working tree 분리 커밋:
+  - (1) upgrade 산출물 커밋
+  - (2) kody 자체 작업(handoff/latest.md + outputs/upstream/) 별도 커밋
+- [ ] `.harness-origin` 1줄 수정: `TEMPLATE_REPO=../../templates/claude-code-harness-template`
+- [ ] 자체 호출 검증
+
+### forge 재방문이 필요할 유일한 계기
+- 다른 다운스트림 프로젝트에서 새로운 피드백 리포트가 들어올 때
+- 또는 char-maker/honbabseoul에서 harness 재설치 후 전파 필요 시
+
+## 새로 배운 것 (PM-2 추가분)
+- **setup.sh의 `.harness-origin` 기본값 이슈는 "다운스트림 전부에게 있는 패턴"** — 단순히 kody 하나 문제 아니었음. setup.sh 자체의 버그였고, 이번에 `$TEMPLATE_DIR` 절대경로로 수정. 새 프로젝트는 올바른 path로 시작.
+- **"재migrate" 스코프 명확화** — "이전에 harness 썼던 프로젝트만" 대상. "빈 repo", "롤백 후 미복구"는 재설치(setup.sh) 대상이라 propagation 워크플로 밖.
+- **Session 분할의 실용성** — A(doc 5건) + B(script 3건) + C(전파)로 나눈 게 효과적. 각 세션 단독으로 명확한 deliverable, 중간에 중단돼도 손실 제한적.
+
+---
+
 # Handoff — 2026-04-23 PM (Propagation 사이클 1회 완주)
 
 ## What Changed (PM 추가분)
