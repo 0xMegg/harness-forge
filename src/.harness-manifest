@@ -20,7 +20,7 @@
 # Core agent config — owned by harness
 .claude/commands/**
 .claude/hooks/**
-.claude/rules/**
+.claude/rules/base/**
 .claude/skills/fitness-filter/**
 .claude/skills/harness-report/**
 .claude/skills/trend-harvest/**
@@ -70,6 +70,10 @@ DRYRUN-NOTES.md
 
 # Claude config users edit per-project
 .claude/settings.json
+
+# Project-owned rules — upgrade never overwrites. Harness-owned rules
+# live under .claude/rules/base/ (managed above).
+.claude/rules/local/**
 
 # Per-project template-repo pointer — seed once, project owns it after
 # (each project may have a different TEMPLATE_REPO path)
