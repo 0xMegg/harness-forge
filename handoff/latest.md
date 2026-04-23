@@ -1,3 +1,49 @@
+# Handoff — 2026-04-23 PM-8 (Phase 1 — docs/updates/ changelog system)
+
+## What Changed (PM-8)
+auto-apply (Phase 2) 의 사전 인프라. forge src/ 변경을 다운스트림 관점 changelog 로 정리하는 `src/docs/updates/` 시스템 구축.
+
+### 구조
+- `src/docs/updates/README.md` — 시스템 설명 + 템플릿 + severity 기준 + 작성 convention + Phase 2 연결
+- `src/docs/updates/INDEX.md` — 연대기 테이블 (상단이 최신)
+- `src/docs/updates/<hash>.md` — 개별 update doc (소급 4 + 이번 1 = 5건)
+
+### 소급 작성 (5건)
+- `b7bbd19.md` — P0 fix: color var hoist (run-task/run-epic)
+- `2a2a51a.md` — P1 feat: post-task handoff gate
+- `5fdf9ff.md` — P0 refactor BREAKING: rules base/local split (Option Y 3 commits 묶음)
+- `657575d.md` — P0 fix: write_status multiline corruption
+- `8f2cea7.md` — P2 docs: 이번 시스템 자체 (self-consistency)
+
+### manifest
+- `src/.harness-manifest [managed]` 에 `docs/updates/**` 추가 → 다운스트림도 local copy 가짐
+
+### convention (앞으로)
+- `src/` 수정하는 forge 커밋은 같은 커밋 안에 `docs/updates/<hash>.md` + INDEX 상단 한 줄 추가
+- forge-only (handoff, feedback 문서 등) 은 생략
+- 판단 기준: `build-template.sh` 결과물이 바뀌는가
+
+## Phase 2 진입 준비
+다음 단계는 run-task.sh / run-epic.sh 의 `check_harness_version()` 을 확장:
+1. local `.harness-version` 의 FORGE_COMMIT 과 template HEAD 비교
+2. 그 사이 커밋 목록 얻기
+3. 각 hash 의 `docs/updates/<hash>.md` 존재 시 summary 추출 (severity + title)
+4. "N개 업데이트 자동 적용: ..." 배너 출력
+5. `upgrade-harness.sh --apply` 자동 호출
+6. 완료 후 `.harness-version` 갱신 확인
+
+다운스트림 실전 테스트 케이스:
+- divebase main: FORGE_COMMIT=5fdf9ff → template 최신 (현 `946c921`, PM-8 후 더 진행) → 2+건 pending
+- kody dev: 동일
+
+## Current State (PM-8 종료 시점)
+- **forge HEAD**: `8f2cea7` (Phase 1 commit, origin/main 1 ahead) — 이 handoff 커밋 후 amend 또는 follow-up
+- **template HEAD**: `51a8f3a` (origin/main 동기). Phase 1 반영 필요 (build + commit + push)
+- **divebase main**: `8fd4744` (origin/main 동기, 2건 pending)
+- **kody dev**: `c991658` (origin/dev 동기, 2건 pending)
+
+---
+
 # Handoff — 2026-04-23 PM-7 (kody P0-6 — write_status() multiline corruption)
 
 ## What Changed (PM-7)
