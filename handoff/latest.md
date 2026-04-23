@@ -1,4 +1,66 @@
-# Handoff — 2026-04-23 (Propagation P1 완료 + Kody Epic 7 P0 완료)
+# Handoff — 2026-04-23 PM (Propagation 사이클 1회 완주)
+
+## What Changed (PM 추가분)
+오전 산출물(P1 manifest + upgrade-harness + Kody P0 src 편집)을 build → template commit → divebase + kody에 실제 전파까지 한 세션에서 완주. 도중 dry-run이 manifest 분류 오류 2건을 catch해서 **해당 즉시 fix → 재dry-run → 통과** 사이클 적용.
+
+### 추가 forge 커밋
+- `d398b72` `fix: .harness-origin → seed + TEMPLATE_REPO env override` — kody dry-run에서 `.harness-origin` overwrite 발견 → seed로 이동(프로젝트별 path 보호) + 도구에 env override 추가(broken `.harness-origin` 우회용)
+- `4581070` `fix: manifest — skills/{bug-fix,code-review} → seed (project-customized)` — divebase dry-run에서 DiveBase v2.0.0 워크플로 덮어쓸 뻔한 것 발견 → seed로 이동
+
+### 추가 template 커밋
+- `3981cd4` `chore: template update from harness-forge (99b37bf)` — 오전 산출 첫 동기화
+- `62f24dc` `chore: template update from harness-forge (d398b72)` — manifest 1차 fix 동기화
+- `5563afe` `chore: template update from harness-forge (4581070)` — manifest 2차 fix 동기화
+
+### 다운스트림 전파 (env override 사용, .harness-origin 미수정)
+| 프로젝트 | 결과 | 사건 시나리오 검증 |
+|---|---|---|
+| **divebase** | --apply 성공, working tree 33 changes | CLAUDE.md(75줄 Flutter) ✅, .gitignore(68줄) ✅, skills/{bug-fix,code-review}/SKILL.md DiveBase v2.0.0 ✅ |
+| **kody** | --apply 성공, working tree 11 changes | CLAUDE.md(99줄) ✅, .harness-origin broken path 그대로(seed 보호) |
+
+전파 메커니즘:
+```bash
+TEMPLATE_REPO=/Users/mero/Dev/13.claude/templates/claude-code-harness-template \
+  bash /Users/mero/Dev/13.claude/templates/claude-code-harness-template/scripts/upgrade-harness.sh --apply
+```
+
+### 검증 결과
+- 사건 시나리오(custom CLAUDE.md/.gitignore/skills/SKILL.md clobbering) **둘 다 재현 안 됨**
+- 두 차례 dry-run 결함 발견 → 즉시 fix → 재검증 통과 = "1개 → diff → 다음" 메모리 규칙 준수
+- 두 프로젝트 모두 working tree에만 변경, 커밋은 각 프로젝트 owner 세션에서 수행 (사용자 framework: 전파로 도달하지 못하는 수정사항만 프로젝트 세션에서)
+
+## Current State (2026-04-23 PM)
+- **forge HEAD**: `4581070` (3 commits ahead of session start: 99b37bf → d398b72 → 4581070)
+- **template HEAD**: `5563afe` (3 commits ahead: 3981cd4 → 62f24dc → 5563afe)
+- **divebase**: 33 working tree changes (11M + 22??), uncommitted, owner 검토 대기
+- **kody**: 11 working tree changes (7M + 4??), uncommitted, owner 검토 대기
+
+## What's Next (per-project sessions)
+
+### divebase 세션
+- [ ] working tree 33 changes 검토 + 커밋 (managed overwrite 11 + 신규 22)
+- [ ] `.claude/.harness-origin.disabled` → `.harness-origin` rename 후 path 교정: `TEMPLATE_REPO=../../templates/claude-code-harness-template`
+- [ ] divebase가 자체적으로 `bash scripts/upgrade-harness.sh` 호출 가능한지 확인 (env override 없이)
+
+### kody 세션
+- [ ] working tree 11 changes 검토 + 커밋 (handoff/latest.md + outputs/upstream은 pre-existing kody 작업, 분리 커밋 권장)
+- [ ] `.claude/.harness-origin` path 교정: `../claude-code-harness-template` → `../../templates/claude-code-harness-template`
+- [ ] kody가 자체적으로 `bash scripts/upgrade-harness.sh` 호출 가능한지 확인
+
+### 다음 forge 세션 (남은 다운스트림)
+- [ ] char-maker 전파 (briefing 4개 중 미수행)
+- [ ] honbabseoul 전파 (briefing 4개 중 미수행, 빈 repo라 risk 낮음)
+- [ ] 기타 workouts/ 프로젝트 (beststcad, haink-workspace, kody-oms, lecture) — 하네스 채택 여부 확인 후 결정
+- [ ] Report 1 P2: `migrate-harness-stamp.sh` 스코프 축소, drift check `SCRIPTS_FILES="..."` 인용
+- [ ] Report 2 P1/P2: Developer follow-up call-sites, Reviewer dead-code 가드, process leak, acceptance-check.sh, T+ 타임스탬프 review 로그
+
+## 새로 배운 것
+- **Manifest 1차 설계로는 부족** — dry-run이 2번 catch한 분류 오류:
+  - `.harness-origin` (per-project path) → seed
+  - `skills/{bug-fix,code-review}` (per-project workflows) → seed
+  - 패턴: "template과 같은 이름이지만 프로젝트가 자체 콘텐츠 가지는 파일"은 seed
+- **env override는 실전에서 필수** — divebase의 `.harness-origin.disabled`, kody의 broken path 둘 다 env override 없이는 전파 불가능했음. 처음에 사용자가 거절한 옵션 B였지만 실전 검증 후 부활.
+- **B-first(전파 경로) 후 dogfood가 매우 효과적** — 도구를 만들고 곧바로 두 실전 케이스에 적용. 메모리 "build+propagate 분리 권고"는 mtime 메커니즘 한정 — 새 도구는 manifest 기반이라 같은 세션에서도 안전(검증됨).
 
 ## What Changed (2026-04-23)
 두 리포트를 한 세션에서 처리: **propagation incident P1 3건** + **kody-workspace Epic 7 P0 3건** (P0-3는 이미 src에 반영되어 있어 제외). `src/`만 편집, 빌드·전파는 다음 세션.
