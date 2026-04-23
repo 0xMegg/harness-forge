@@ -103,6 +103,25 @@ At the very end of your review output, emit a structured marker on its own line:
 Use exactly one of: `APPROVE`, `REQUEST_CHANGES`, `ITERATE`.
 This marker enables reliable automated parsing by the orchestrator.
 
+## Review Log Timestamps (for outlier diagnosis)
+When a review is likely to take longer than the typical 10–15 minute slice
+(large diff, cascading changes, multi-area Epic audit), emit progress
+markers to the review report as you work:
+
+```
+[T+00:00] review start — N files, M hunks
+[T+00:05] build pass (lint + typecheck)
+[T+00:15] test suite pass (X/X)
+[T+00:30] scope check done (X/X files in plan)
+[T+00:45] reviewed hunks X/M
+[T+01:00] verdict decided: APPROVE
+```
+
+Without these, a 72-minute slice is indistinguishable from a hung process
+in post-mortem. Minimum 3 markers for slices expected to exceed 30 min.
+No need for exact clock accuracy — elapsed minutes since review-start is
+enough (you control when to write a marker).
+
 ## Commit Rules (APPROVE only)
 - Commit + push immediately after APPROVE — do not ask
 - Message format: `type: Task N — short summary`

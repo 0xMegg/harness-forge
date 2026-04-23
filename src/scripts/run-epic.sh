@@ -1312,6 +1312,27 @@ done
 
 write_epic_status "STAGE=done" "COMPLETED_STAGES=${COMPLETED_STAGES}"
 
+# Enforce Terminal Audit Slice gate (if an audit report exists for this epic).
+# An audit report that says "Verdict: ITERATE" or Blocker>0 must fail the
+# whole epic — otherwise the wrapper marks success while real blockers remain
+# (kody Epic 7: 14/14 APPROVE with audit Blocker=2 shipped as green).
+if [ "$DRY_RUN" != true ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  ACCEPT_REPORT=$(find "$PROJECT_DIR/outputs/reviews" -type f \
+    \( -name "*${RUN_ID}*audit*" -o -name "*${EPIC}*audit*" -o -name "*epic*audit*" \) \
+    -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1 || true)
+  if [ -n "$ACCEPT_REPORT" ] && [ -f "$SCRIPT_DIR/acceptance-check.sh" ]; then
+    echo ""
+    echo -e "${CYAN}Terminal audit gate check: $ACCEPT_REPORT${NC}"
+    if ! bash "$SCRIPT_DIR/acceptance-check.sh" "$ACCEPT_REPORT"; then
+      echo -e "${RED}✗ Epic acceptance FAILED — audit report reports blockers${NC}" >&2
+      echo -e "${RED}  See: $ACCEPT_REPORT${NC}" >&2
+      echo -e "${RED}  Epic branch kept for review; not auto-merged.${NC}" >&2
+      exit 1
+    fi
+  fi
+fi
+
 # Auto-merge epic branch to original on successful completion
 finalize_epic_branch
 
