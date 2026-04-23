@@ -56,6 +56,10 @@ docs/plugin-guide.md
 docs/troubleshooting.md
 docs/assumptions.md
 
+# Update changelog (per-commit update docs, INDEX, convention README)
+# Consumed by Phase 2 auto-apply to summarize what's being applied.
+docs/updates/**
+
 # The manifest itself — propagates with the template
 .harness-manifest
 
