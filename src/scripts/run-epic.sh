@@ -92,16 +92,41 @@ export EPIC_LOG_DIR="$LOG_DIR"
 
 # ============================================================
 # Harness version check — warning-only (no auto-sync).
-# Compares local .harness-version stamp to template repo HEAD and prints
-# a WARNING with upgrade instructions if outdated. Does NOT modify files.
-#
-# Previously this block ran `rsync -a --update` from the template into the
-# project on every invocation. The --update flag was trusted as a
-# "project-owned file protection" guard, but it is purely an mtime
-# comparison — `build-template.sh` re-stamps template mtimes on every
-# build, breaking the guard and overwriting project-owned files. Use
-# scripts/upgrade-harness.sh for manifest-based updates instead.
+# Compares local .harness-version stamp to template repo's stamp and
+# auto-applies pending updates before the epic starts (Phase 2).
+# Opt out with HARVEST_SKIP_UPDATE_CHECK=1 (warn only, no apply).
 # ============================================================
+
+_extract_forge_commit() {
+  grep '^FORGE_COMMIT=' | head -1 | cut -d= -f2- | sed -e 's/^["'"'"']//' -e 's/["'"'"']$//'
+}
+
+_summarize_pending_updates() {
+  local index_content="$1"
+  local local_commit="$2"
+  local in_table=0
+  local line hash severity title
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^\|[[:space:]]*-+ ]]; then
+      in_table=1
+      continue
+    fi
+    if [ "$in_table" = 1 ] && [[ "$line" != \|* ]]; then
+      in_table=0
+      continue
+    fi
+    [ "$in_table" = 1 ] || continue
+    hash=$(echo "$line" | sed -n 's/.*\[\([a-f0-9]\{7,\}\)\](.*/\1/p')
+    [ -z "$hash" ] && continue
+    if [ "$hash" = "$local_commit" ]; then
+      break
+    fi
+    severity=$(echo "$line" | awk -F'|' '{gsub(/^ +| +$/,"",$4); print $4}')
+    title=$(echo "$line" | awk -F'|' '{gsub(/^ +| +$/,"",$6); print $6}')
+    echo "  [${severity}] ${title} (${hash})"
+  done <<< "$index_content"
+}
+
 check_harness_version() {
   local vfile="$PROJECT_DIR/.claude/.harness-version"
   local origin_file="$PROJECT_DIR/.claude/.harness-origin"
@@ -138,7 +163,6 @@ BOEOF
   source "$origin_file"
   local tmpl_repo="${TEMPLATE_REPO:-}"
 
-  # Resolve relative path from PROJECT_DIR
   if [ -n "$tmpl_repo" ] && [[ "$tmpl_repo" != /* ]]; then
     tmpl_repo="$PROJECT_DIR/$tmpl_repo"
   fi
@@ -148,30 +172,51 @@ BOEOF
     return 0
   fi
 
-  # Fetch latest from template repo remote
   if ! git -C "$tmpl_repo" fetch --quiet 2>/dev/null; then
     echo -e "${YELLOW}⚠ Could not fetch template repo updates (offline?) — version check skipped${NC}" >&2
     return 0
   fi
 
   local local_commit="${FORGE_COMMIT:-}"
-  local remote_head
-  remote_head=$(git -C "$tmpl_repo" rev-parse --short origin/main 2>/dev/null || echo "")
+  local template_forge_commit
+  template_forge_commit=$(git -C "$tmpl_repo" show origin/main:.claude/.harness-version 2>/dev/null \
+    | _extract_forge_commit)
 
-  if [ -z "$remote_head" ]; then
-    echo -e "${YELLOW}⚠ Could not read template repo HEAD — version check skipped${NC}" >&2
+  if [ -z "$template_forge_commit" ]; then
+    echo -e "${YELLOW}⚠ Could not read template .harness-version — version check skipped${NC}" >&2
     return 0
   fi
 
-  if [ "$local_commit" = "$remote_head" ]; then
-    echo -e "${GREEN}  ✓ Harness up-to-date (${local_commit})${NC}" >&2
+  if [ "$local_commit" = "$template_forge_commit" ]; then
+    echo -e "${GREEN}  ✓ Harness up-to-date (forge ${local_commit})${NC}" >&2
     return 0
   fi
 
-  # Out of date — warn only. Do NOT auto-sync (see function header comment).
-  echo -e "${YELLOW}  ⚠ Harness out of date: local ${local_commit} → template ${remote_head}${NC}" >&2
-  echo -e "${YELLOW}    Review changes and update with:   bash scripts/upgrade-harness.sh --apply${NC}" >&2
-  echo -e "${YELLOW}    (preview without changes:         bash scripts/upgrade-harness.sh)${NC}" >&2
+  echo -e "${YELLOW}  ⚠ Harness out of date: forge ${local_commit} → ${template_forge_commit}${NC}" >&2
+
+  local index_content pending
+  index_content=$(git -C "$tmpl_repo" show "origin/main:docs/updates/INDEX.md" 2>/dev/null || echo "")
+  if [ -n "$index_content" ]; then
+    pending=$(_summarize_pending_updates "$index_content" "$local_commit")
+    if [ -n "$pending" ]; then
+      echo -e "${CYAN}  Pending updates:${NC}" >&2
+      echo "$pending" >&2
+    fi
+  fi
+
+  if [ "${HARVEST_SKIP_UPDATE_CHECK:-0}" = "1" ]; then
+    echo -e "${YELLOW}    HARVEST_SKIP_UPDATE_CHECK=1 — apply skipped; run scripts/upgrade-harness.sh --apply manually${NC}" >&2
+    return 0
+  fi
+
+  echo -e "${CYAN}  Auto-applying harness updates...${NC}" >&2
+  if bash "$PROJECT_DIR/scripts/upgrade-harness.sh" --apply >&2; then
+    echo -e "${GREEN}  ✓ Harness updated to forge ${template_forge_commit}${NC}" >&2
+  else
+    echo -e "${RED}  ✗ upgrade-harness.sh --apply failed — aborting epic${NC}" >&2
+    echo -e "${RED}    Fix the reported issue or set HARVEST_SKIP_UPDATE_CHECK=1 to proceed with stale harness${NC}" >&2
+    return 1
+  fi
 }
 check_harness_version
 

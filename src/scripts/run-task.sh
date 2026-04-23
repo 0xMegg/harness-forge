@@ -92,11 +92,56 @@ fi
 mkdir -p "$LOG_DIR"
 
 # ============================================================
-# Harness version check — warning-only (no auto-sync).
+# Harness version check — auto-applies pending updates before task starts.
 # Skipped when launched by run-epic.sh (EPIC_NAME is set) to avoid a
-# duplicate warning. See scripts/run-epic.sh for rationale on why the
-# prior rsync-based auto-sync was removed.
+# duplicate check. Set HARVEST_SKIP_UPDATE_CHECK=1 to opt out (warn only).
 # ============================================================
+
+# Read FORGE_COMMIT from a .harness-version content passed on stdin.
+# Strips optional surrounding single or double quotes (build-template.sh
+# writes bare, but be defensive).
+_extract_forge_commit() {
+  grep '^FORGE_COMMIT=' | head -1 | cut -d= -f2- | sed -e 's/^["'"'"']//' -e 's/["'"'"']$//'
+}
+
+# Parse template's docs/updates/INDEX.md, emit one line per update that
+# lies above (= newer than) the local FORGE_COMMIT in the table.
+# Format of emitted lines: "  [SEVERITY] TITLE (HASH)"
+#
+# INDEX.md table row format:
+#   | 2026-04-23 | [hash](./hash.md) | P0 | fix | title | no |
+_summarize_pending_updates() {
+  local index_content="$1"
+  local local_commit="$2"
+  local in_table=0
+  local line hash severity title
+  # Read line by line
+  while IFS= read -r line; do
+    # Table header separator line: |---|---|...
+    if [[ "$line" =~ ^\|[[:space:]]*-+ ]]; then
+      in_table=1
+      continue
+    fi
+    # Non-table line ends current table
+    if [ "$in_table" = 1 ] && [[ "$line" != \|* ]]; then
+      in_table=0
+      continue
+    fi
+    [ "$in_table" = 1 ] || continue
+    # Parse row: extract hash from [hash](./hash.md), then fields 3 and 5 (severity, title)
+    hash=$(echo "$line" | sed -n 's/.*\[\([a-f0-9]\{7,\}\)\](.*/\1/p')
+    [ -z "$hash" ] && continue
+    # If we reached local commit, stop (all updates above are pending)
+    if [ "$hash" = "$local_commit" ]; then
+      break
+    fi
+    # Split pipe fields, extract severity (col 3) and title (col 5)
+    severity=$(echo "$line" | awk -F'|' '{gsub(/^ +| +$/,"",$4); print $4}')
+    title=$(echo "$line" | awk -F'|' '{gsub(/^ +| +$/,"",$6); print $6}')
+    echo "  [${severity}] ${title} (${hash})"
+  done <<< "$index_content"
+}
+
 check_harness_version() {
   if [ -n "${EPIC_NAME:-}" ]; then return 0; fi  # epic already checked
   local vfile="$PROJECT_DIR/.claude/.harness-version"
@@ -148,21 +193,50 @@ BOEOF
   fi
 
   local local_commit="${FORGE_COMMIT:-}"
-  local remote_head
-  remote_head=$(git -C "$tmpl_repo" rev-parse --short origin/main 2>/dev/null || echo "")
+  # Compare forge commits on both sides (fixes pre-Phase-2 bug of
+  # comparing local forge hash to template repo's own hash).
+  local template_forge_commit
+  template_forge_commit=$(git -C "$tmpl_repo" show origin/main:.claude/.harness-version 2>/dev/null \
+    | _extract_forge_commit)
 
-  if [ -z "$remote_head" ]; then
+  if [ -z "$template_forge_commit" ]; then
+    echo -e "${YELLOW}⚠ Could not read template .harness-version — version check skipped${NC}" >&2
     return 0
   fi
 
-  if [ "$local_commit" = "$remote_head" ]; then
-    echo -e "${GREEN}  ✓ Harness up-to-date (${local_commit})${NC}" >&2
+  if [ "$local_commit" = "$template_forge_commit" ]; then
+    echo -e "${GREEN}  ✓ Harness up-to-date (forge ${local_commit})${NC}" >&2
     return 0
   fi
 
-  # Out of date — warn only. Do NOT auto-sync.
-  echo -e "${YELLOW}  ⚠ Harness out of date: local ${local_commit} → template ${remote_head}${NC}" >&2
-  echo -e "${YELLOW}    Review changes and update with:   bash scripts/upgrade-harness.sh --apply${NC}" >&2
+  # Out of date — list pending updates + auto-apply
+  echo -e "${YELLOW}  ⚠ Harness out of date: forge ${local_commit} → ${template_forge_commit}${NC}" >&2
+
+  local index_content pending
+  index_content=$(git -C "$tmpl_repo" show "origin/main:docs/updates/INDEX.md" 2>/dev/null || echo "")
+  if [ -n "$index_content" ]; then
+    pending=$(_summarize_pending_updates "$index_content" "$local_commit")
+    if [ -n "$pending" ]; then
+      echo -e "${CYAN}  Pending updates:${NC}" >&2
+      echo "$pending" >&2
+    fi
+  fi
+
+  # Opt-out for debugging / offline inspection
+  if [ "${HARVEST_SKIP_UPDATE_CHECK:-0}" = "1" ]; then
+    echo -e "${YELLOW}    HARVEST_SKIP_UPDATE_CHECK=1 — apply skipped; run scripts/upgrade-harness.sh --apply manually${NC}" >&2
+    return 0
+  fi
+
+  # Auto-apply
+  echo -e "${CYAN}  Auto-applying harness updates...${NC}" >&2
+  if bash "$PROJECT_DIR/scripts/upgrade-harness.sh" --apply >&2; then
+    echo -e "${GREEN}  ✓ Harness updated to forge ${template_forge_commit}${NC}" >&2
+  else
+    echo -e "${RED}  ✗ upgrade-harness.sh --apply failed — aborting task${NC}" >&2
+    echo -e "${RED}    Fix the reported issue or set HARVEST_SKIP_UPDATE_CHECK=1 to proceed with stale harness${NC}" >&2
+    return 1
+  fi
 }
 check_harness_version
 
