@@ -1,3 +1,28 @@
+# Handoff — 2026-04-23 PM-3 (Protected-branch sync 가이드 보강)
+
+## What Changed (PM-3)
+다운스트림(divebase/kody) 세션에서 발견된 문서화 gap 1건 처리. 보호 브랜치 위에서 `upgrade-harness.sh`를 돌린 뒤 어떻게 커밋·머지하는지 안내가 없어서 divebase 세션에서 막힘 → task branch + `--ff-only` 워크플로로 해결. 재발 방지 문서화.
+
+### Src 편집 (2곳)
+- `src/README.md` — "Upgrading an Existing Project" 섹션에 "Committing the sync on a protected branch" 하위 블록 추가:
+  - `HARVEST_ALLOW_MAIN=1 git commit ...` inline은 Claude Code PreToolUse hook이 프로세스 env만 읽어서 실제로는 block됨을 명시
+  - 실효 방법 2가지: Claude Code를 `HARVEST_ALLOW_MAIN=1 claude`로 재시작 / task branch + `git merge --ff-only`
+  - 솔로 작업이면 `--ff-only` 권장, PR은 팀 리뷰가 의미 있을 때만
+- `src/.claude/rules/git.md` — "긴급 우회: HARVEST_ALLOW_MAIN=1" 불릿 아래에 주의 + 실효 방법 2줄 추가 (같은 내용 요약)
+
+### Build
+- `bash scripts/build-template.sh` → template repo에 반영 (86 files synced, forge c6df7f1 기준 stamp)
+- Template repo 커밋은 이 세션의 forge 커밋 직후 수행 예정 (`chore: template update from harness-forge (<hash>)`)
+
+### 다운스트림 전파
+별도 세션에서. PM-2의 propagation cycle 2를 다시 돌리지 않고, 각 프로젝트의 자체 `upgrade-harness.sh` 실행 시 자연스럽게 새 README/git.md 반영됨.
+
+## Current State (PM-3 종료 시점)
+- **forge HEAD**: PM-3 편집 미커밋 — `src/README.md`, `src/.claude/rules/git.md` working tree
+- **template HEAD**: `224e892` (PM-2 상태) → forge 커밋 후 template sync 커밋 추가 예정
+
+---
+
 # Handoff — 2026-04-23 PM-2 (Strict closure: 두 리포트 완료)
 
 ## What Changed (PM-2)
