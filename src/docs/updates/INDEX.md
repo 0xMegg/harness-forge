@@ -10,6 +10,7 @@ forge src/ 에서 다운스트림으로 전파되는 모든 변경의 연대기.
 
 | Date | Hash | Severity | Type | Title | Breaking |
 |------|------|----------|------|-------|----------|
+| 2026-04-24 | [4d02f86](./4d02f86.md) | P1 | feat | check_harness_version auto-apply (Phase 2) | no |
 | 2026-04-23 | [8f2cea7](./8f2cea7.md) | P2 | docs | harness updates changelog system (Phase 1) | no |
 | 2026-04-23 | [657575d](./657575d.md) | P0 | fix | write_status() multiline value corruption | no |
 | 2026-04-23 | [5fdf9ff](./5fdf9ff.md) | P0 | refactor | .claude/rules/ base/local split (Option Y Phase 0) | **yes** |
