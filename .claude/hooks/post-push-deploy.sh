@@ -2,27 +2,36 @@
 # post-push-deploy.sh — PostToolUse hook for Bash
 # Triggers forge-deploy after a successful `git push` in the forge repo.
 #
-# Called by Claude Code PostToolUse hook with $TOOL_INPUT as argument.
-# Only fires when the tool input contains "git push" (not git push --force etc.)
+# Called by Claude Code PostToolUse hook with the JSON payload on stdin.
+# Payload shape: {"hook_event_name":"PostToolUse","tool_name":"Bash",
+#                 "tool_input":{"command":"..."},"tool_response":{...}, ...}
 
 set -euo pipefail
 
-# DEBUG: temporary diagnostic — remove after diagnosing $TOOL_INPUT placeholder issue
+# Read the hook payload from stdin (Claude Code standard).
+# Fallback to $1 for legacy / manual invocation.
+INPUT_JSON="$(cat 2>/dev/null || true)"
+[ -z "$INPUT_JSON" ] && INPUT_JSON="${1:-}"
+
+# DEBUG: keep one more cycle to confirm fix; remove in a follow-up commit.
 {
   echo "==== $(date -u +%FT%TZ) ===="
-  echo "argv: [$*]"
-  echo "argc: $#"
-  echo "stdin-peek: $(timeout 1 cat 2>/dev/null || echo '(empty/timeout)')"
-  echo "env-CLAUDE: $(env | grep -E '^(CLAUDE|HOOK|TOOL)' || echo '(none)')"
+  echo "input-len: ${#INPUT_JSON}"
 } >> /tmp/post-push-deploy.log 2>&1
 
-TOOL_INPUT="${1:-}"
-PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+# Extract tool_input.command (prefer jq for correctness with multi-line commands).
+if command -v jq >/dev/null 2>&1; then
+  CMD=$(printf '%s' "$INPUT_JSON" | jq -r '.tool_input.command // ""' 2>/dev/null || echo "")
+else
+  CMD=$(printf '%s' "$INPUT_JSON" | sed -n 's/.*"tool_input":{[^}]*"command":"\([^"]*\)".*/\1/p')
+fi
 
-# Only trigger on git push commands (not --force, which is denied)
-if ! echo "$TOOL_INPUT" | grep -qE '"command".*git push'; then
+# Only trigger on git push commands (not --force, which is denied at policy layer)
+if ! echo "$CMD" | grep -q 'git push'; then
   exit 0
 fi
+
+PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
 # Only trigger in forge repo (not template repo or other repos)
 if [ ! -f "$PROJECT_DIR/scripts/forge-deploy.sh" ]; then

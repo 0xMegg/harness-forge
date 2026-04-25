@@ -3,7 +3,9 @@
 # Blocks `git commit` when src/ changes are staged without anything staged
 # under src/docs/updates/. Convention source: src/docs/updates/README.md.
 #
-# Called by Claude Code PreToolUse hook with $TOOL_INPUT as argument.
+# Called by Claude Code PreToolUse hook with the JSON payload on stdin.
+# Payload shape: {"hook_event_name":"PreToolUse","tool_name":"Bash",
+#                 "tool_input":{"command":"..."}, ...}
 #
 # Escape hatch: HARNESS_SKIP_UPDATE_DOC_CHECK=1 on the Claude Code process env.
 # Inline `HARNESS_SKIP_UPDATE_DOC_CHECK=1 git commit ...` does NOT work
@@ -12,10 +14,18 @@
 
 set -euo pipefail
 
-TOOL_INPUT="${1:-}"
+# Read payload from stdin (Claude Code standard); fall back to $1 for legacy.
+INPUT_JSON="$(cat 2>/dev/null || true)"
+[ -z "$INPUT_JSON" ] && INPUT_JSON="${1:-}"
+
+if command -v jq >/dev/null 2>&1; then
+  CMD=$(printf '%s' "$INPUT_JSON" | jq -r '.tool_input.command // ""' 2>/dev/null || echo "")
+else
+  CMD=$(printf '%s' "$INPUT_JSON" | sed -n 's/.*"tool_input":{[^}]*"command":"\([^"]*\)".*/\1/p')
+fi
 
 # Only fire on git commit
-if ! echo "$TOOL_INPUT" | grep -qE '"command".*git commit'; then
+if ! echo "$CMD" | grep -q 'git commit'; then
   exit 0
 fi
 
