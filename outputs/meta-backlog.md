@@ -5,7 +5,7 @@
 
 - 최초 작성: 2026-04-29 (round 5 close-out 시점)
 - carry-over 상한: 5 (Operating Mode default)
-- **현재 open count: 13** — 상한 초과. 다음 META 박스에서 결단 강제.
+- **현재 open count: 15** (P1 6 + P2 5 + P3 4) — 상한 초과. 다음 META 박스에서 결단 강제.
 - 결단 4종: `open` (대기) / `close` (해결) / `scope-out` (안 함, 이유 기록) / `escalate` / `keep` (≤1건만)
 
 ---
@@ -72,4 +72,4 @@ P3 4건은 META 박스 메트릭 / 진단 신호로 활용 (carry-over 추적용
 YYYY-MM-DD | wall-clock <Nm> | closed <N> | open-after <N> | new-found-P0/P1 <N>
 ```
 
-- 첫 박스 (이번 round 5 close-out 자체): wall-clock 1세션 (2일치 누적, 박스 없이 진행됨), closed 3 (C1/C2/C3), open-after 13, new-found-P0/P1 0.
+- 첫 박스 (이번 round 5 close-out 자체): wall-clock 1세션 (2일치 누적, 박스 없이 진행됨), closed 3 (C1/C2/C3), open-after 15, new-found-P0/P1 0.
