@@ -9,10 +9,9 @@
 - **검증**: `bash -n src/scripts/upgrade-harness.sh`, `bash -n src/scripts/check-harness-regression.sh`, `bash src/scripts/check-harness-regression.sh` 통과. 임시 downstream smoke 에서 4개 파일 설치 + docs literal 보존 + slash/ampersand project name substitution 확인.
 - **build-template**: `bash scripts/build-template.sh` 통과. target template `../claude-code-harness-template/` 에 manifest/update/upgrade-harness 변경 전파.
 - **Claude second review**: 계획 단계에서 manifest/upgrade 지점 확인 조언 반영. 구현 리뷰 결과 blocker 없음, 승인.
-- **문서**: `src/docs/updates/round-4-p0-sync-fixes.md` 임시 update doc + INDEX row 추가.
+- **문서**: `src/docs/updates/cee3b30.md` update doc + INDEX row 추가.
 
 ### 남은
-- **commit 시 rename**: `round-4-p0-sync-fixes.md` 를 최종 short hash 이름으로 rename 하고 INDEX row hash 교체.
 - **push/전파**: 사용자 승인 후 forge push → template hook 확인.
 
 ## 다음 task 후보
@@ -28,4 +27,4 @@
 ## 참조
 - `outputs/reports/session-report-2026-04-29.md`
 - `src/docs/updates/e2ee114.md`
-- `src/docs/updates/round-4-p0-sync-fixes.md`
+- `src/docs/updates/cee3b30.md`

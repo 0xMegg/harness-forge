@@ -1,5 +1,5 @@
 ---
-hash: round-4-p0-sync-fixes
+hash: cee3b30
 date: 2026-04-29
 severity: P0
 type: fix
@@ -12,7 +12,7 @@ breaking: false
 Fixes two downstream sync blockers found after forge round 3: newly added phase wrapper/regression scripts were not classified in `.harness-manifest`, and `upgrade-harness.sh` applied `{{PROJECT_NAME}}` substitution too broadly across managed markdown/script files.
 
 ## Commits
-- `<pending>` round 4 P0 sync blockers (rename this file to the final forge short hash after commit)
+- `cee3b30` fix: forge round 4 P0 — upgrade-harness scoped PROJECT_NAME substitution + missing phase wrapper manifest entries
 
 ## Changes
 - `src/.harness-manifest` — adds `scripts/run-plan.sh`, `scripts/run-develop.sh`, `scripts/run-review.sh`, and `scripts/check-harness-regression.sh` to `[managed]`.
