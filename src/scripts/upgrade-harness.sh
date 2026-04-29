@@ -127,8 +127,9 @@ done < "$MANIFEST"
 
 # ---------- Resolve PROJECT_NAME for placeholder substitution ----------
 # Order: env var → CLAUDE.md "- Name:" line → directory basename.
-# Used to substitute {{PROJECT_NAME}} in managed .md/.sh files post-copy
-# (covers files that setup.sh's FILES_TO_REPLACE list missed at init time).
+# Used to substitute {{PROJECT_NAME}} only in files whose runtime behavior
+# depends on the project name. Do not blanket-substitute all managed markdown:
+# docs/updates/** intentionally contains historical placeholder literals.
 resolve_project_name() {
   if [ -n "${PROJECT_NAME:-}" ]; then
     echo "$PROJECT_NAME"
@@ -145,6 +146,21 @@ resolve_project_name() {
   basename "$PROJECT_DIR"
 }
 PROJECT_NAME_RESOLVED="$(resolve_project_name)"
+PROJECT_NAME_SED_REPL="$(printf '%s' "$PROJECT_NAME_RESOLVED" | sed 's/[\\&|]/\\&/g')"
+
+should_substitute_project_name() {
+  local rel="$1"
+  case "$rel" in
+    .claude/commands/task.md) return 0 ;;
+    .claude/scripts/*.sh) return 0 ;;
+    scripts/run-task.sh) return 0 ;;
+    scripts/run-epic.sh) return 0 ;;
+    templates/role-planner.md) return 0 ;;
+    templates/role-developer.md) return 0 ;;
+    templates/role-reviewer.md) return 0 ;;
+  esac
+  return 1
+}
 
 # ---------- Classification ----------
 # Returns 0 if $1 matches pattern $2; handles `dir/**` as recursive prefix.
@@ -211,15 +227,14 @@ while IFS= read -r -d '' file; do
       if $APPLY; then
         mkdir -p "$(dirname "$dst")"
         cp -p "$file" "$dst"
-        # Post-copy: substitute {{PROJECT_NAME}} in managed text files so
-        # downstream projects do not ship raw placeholders (root cause of
-        # the divebase task.md regression where the inline command pointed
-        # at /tmp/{{PROJECT_NAME}}-run/).
+        # Post-copy: substitute {{PROJECT_NAME}} only in runtime files that
+        # require project-specific paths/prompts. Blanket substitution caused
+        # docs/updates examples and upgrade metadata to be rewritten.
         case "$rel" in
           *.md|*.sh)
-            if grep -q '{{PROJECT_NAME}}' "$dst" 2>/dev/null; then
-              sed -i '' "s/{{PROJECT_NAME}}/$PROJECT_NAME_RESOLVED/g" "$dst" 2>/dev/null || \
-              sed -i "s/{{PROJECT_NAME}}/$PROJECT_NAME_RESOLVED/g" "$dst" 2>/dev/null || true
+            if should_substitute_project_name "$rel" && grep -q '{{PROJECT_NAME}}' "$dst" 2>/dev/null; then
+              sed -i '' "s|{{PROJECT_NAME}}|$PROJECT_NAME_SED_REPL|g" "$dst" 2>/dev/null || \
+              sed -i "s|{{PROJECT_NAME}}|$PROJECT_NAME_SED_REPL|g" "$dst" 2>/dev/null || true
             fi
             ;;
         esac

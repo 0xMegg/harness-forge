@@ -40,12 +40,16 @@ skills/SKILL-TEST-CHECKLIST.md
 # scripts in the same dir stay untouched)
 scripts/acceptance-check.sh
 scripts/audit-coherence.sh
+scripts/check-harness-regression.sh
 scripts/diagnose.sh
 scripts/epic-monitor.sh
 scripts/harness-report.sh
 scripts/mcp-check.sh
+scripts/run-develop.sh
 scripts/run-epic.sh
 scripts/run-harvest.sh
+scripts/run-plan.sh
+scripts/run-review.sh
 scripts/run-task.sh
 scripts/upgrade-harness.sh
 scripts/verify-parallel-worktree.sh
