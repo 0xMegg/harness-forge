@@ -1,33 +1,53 @@
-# Handoff — 2026-04-29 (round 5 close-out)
+# Session Handoff
 
-## 현재 상태
-Round 5 (Operating Mode template + meta-backlog 단일 위치) 산출 정착. 정정 commit 후 forge push 만 남음.
+## Additional Update — 2026-05-01
+- Task: Hermes Harness 정수 추출 문서 초안 구현
+- Scope: `outputs/hermes-essence/`에 philosophy/automation boundary 초안 추가
+- Files added:
+  - `outputs/hermes-essence/philosophy.md` — load-bearing invariant 6개를 failure / decision / operator question / source 형식으로 정리
+  - `outputs/hermes-essence/automation-boundary.md` — auto-apply / human gate / block 기준과 round 3~5 사례 정리
+- Verification:
+  - `philosophy.md` 77 lines — target 150 이하
+  - `automation-boundary.md` 80 lines — target 80 이하
+  - operational mechanics 복제 금지 확인 — 7-Element / 6-Phase / 5-axis는 비복제 선언 문장 외 장황한 재서술 없음
+- Follow-up review: Claude 점검 결과 generic invariant 2개(`Read before write`, `Small and local before broad and clever`) 제거, automation boundary의 `risk`, `fitness score`, `harness-report` 기준 구체화 완료.
+- Note: 이번 작업은 `outputs/` 문서 추가만 수행했으므로 `src/` build-template 전파 대상 아님.
 
-## 완료
-- `12a6f9f` feat: forge round 5 — Operating Mode template + meta-backlog 단일 위치
-- `5e3f701` docs: rename forge round 5 update doc to commit hash 12a6f9f
-- 본 정정 commit — handoff 갱신 + meta-backlog open count 표기 정정
+## Current State
+- Task: Planner role 문서 정리
+- Phase: Develop → ready for Review
+- Date: 2026-04-30
 
-산출:
-- `src/docs/operating-mode-template.md` (90줄, [managed]) — kody OPERATING-MODE 의 일반화 reference
-- `src/.harness-manifest` — `docs/operating-mode-template.md` [managed] 등록
-- `outputs/meta-backlog.md` (forge-only) — backlog 단일 위치
-- `src/docs/updates/12a6f9f.md` + INDEX row
-- `handoff/latest.md` — `## Meta Debt` 정식 명칭화
+## Last Action
+- `src/templates/role-planner.md`에서 Planner를 product-code read-only role로 재정의.
+- planning artifact write 범위, plan coverage, parent plan deviation, verification drift requirements, parallel slice file-overlap rule을 명시.
+- 이전 handoff를 `handoff/archive/session-2026-04-30.md`로 archive.
+- `bash scripts/build-template.sh` 실행으로 regression gate와 target template sync 완료.
+- Verdict: N/A
+- Commit: none
 
-## 다음 action (단 하나)
-**IMPL 복귀 — honbabseoul Slice 1 review.** 별도 새 세션에서 이전에 작성된 honbab 프롬프트 그대로 진행.
+## Files Changed
+- `src/templates/role-planner.md` — Planner role boundary와 planning/verification rules 강화
+- `handoff/archive/session-2026-04-30.md` — 이전 handoff archive
+- `handoff/latest.md` — 이번 변경 상태 기록
 
-## 본 round close-out 잔여
-- forge push (사용자 확인 후) → `post-push-deploy.sh` hook 자동 발동 → template repo 자동 commit/push
-- hook 실패 또는 template repo 가 계속 dirty 면 propagation close-out 으로만 처리 (새 개선 작업 확장 금지)
+## Verification Status
+- Lint: PASS — `build-template.sh` regression gate shellcheck clean
+- Test: PASS — `build-template.sh` smoke test passed
+- Live: N/A
 
-## Meta Debt
-영속 backlog: `outputs/meta-backlog.md` (open 15 / closed 3).
-- carry-over 상한 5 초과 (15). 다음 META 박스에서 결단 강제 — close / scope-out / escalate / keep.
-- 본 backlog 는 **다음 META 박스 input 으로만 보존**. 즉시 실행 안 함. 박스 시점은 IMPL 복귀 후 별도 결정.
+## Issues Found
+- Critical: none
+- Important: `src/` 변경이므로 commit 시 `src/docs/updates/<short-hash>.md`와 INDEX row가 필요함. commit hash 확정 전이라 아직 생성하지 않음.
 
-## 참조
-- 보고서: `outputs/reports/session-report-2026-04-29.md`, `outputs/reports/p0-sync-fix-result-2026-04-29.md`
-- 직전 round: `cee3b30` (round 4 P0), `e2ee114` (round 3)
-- 다운스트림 sync 프롬프트: 이전 세션 conversation 의 honbab / divebase 용 (재사용)
+## Next Step
+- Review role로 `src/templates/role-planner.md` 문구가 intended role boundary와 충돌하지 않는지 확인.
+- 이후 commit 전에 update doc을 실제 commit short hash 기준으로 추가.
+
+## Carry Over
+- Round 5 close-out의 forge push 잔여는 이번 문서 변경과 별개로 유지.
+
+## Plan & Review Locations
+- Plan: N/A — user-directed direct edit
+- Verify: N/A
+- Review: N/A
